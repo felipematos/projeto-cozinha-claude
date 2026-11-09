@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cozinha & Copa — Área Coberta</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/svg2pdf.js@2.2.3/dist/svg2pdf.umd.min.js"></script>
+  <script type="importmap">
+    { "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    } }
+  </script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true"></div>
+      <div>
+        <h1>Cozinha &amp; Copa</h1>
+        <p>Área Coberta · 4,60 × 6,40 m · rústico com madeira de demolição</p>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" data-tab="plan" class="on">Planta baixa</button>
+      <button role="tab" data-tab="high">3D</button>
+    </nav>
+    <div class="actions">
+      <button class="icon" id="undo" title="Desfazer (⌘Z)">↶</button>
+      <button class="icon" id="redo" title="Refazer (⇧⌘Z)">↷</button>
+      <button class="btn" id="marcenariaBtn" title="Gerar o projeto dos armários em PDF para o marceneiro">🪚 Projeto dos armários</button>
+      <div class="menu">
+        <button class="btn">Salvar ▾</button>
+        <div class="menu-pop">
+          <button data-act="save">Salvar agora (neste navegador)</button>
+          <button data-act="saveVersion">Salvar como versão…</button>
+          <div class="sub" id="versions"></div>
+          <hr />
+          <button data-act="downloadJSON">Baixar layout (.json)</button>
+          <button data-act="openJSON">Abrir layout (.json)…</button>
+          <hr />
+          <button data-act="reset" class="danger">Restaurar proposta original</button>
+        </div>
+      </div>
+      <div class="menu">
+        <button class="btn primary">Exportar ▾</button>
+        <div class="menu-pop right">
+          <button data-act="pdfPlan">PDF — planta 1:50</button>
+          <button data-act="pdfFull">PDF — planta + 6 vistas 3D</button>
+          <button data-act="marcenaria">PDF — projeto dos armários (marceneiro)</button>
+          <hr />
+          <button data-act="pngView">PNG — vista 3D atual</button>
+          <button data-act="pngAll">PNG — todas as vistas 3D</button>
+          <button data-act="pngPlan">PNG — planta</button>
+        </div>
+      </div>
+      <input type="file" id="fileJSON" accept=".json,application/json" hidden />
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stage">
+      <div class="pane on" data-pane="plan">
+        <svg id="plan" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div class="floating tl">
+          <button class="icon" id="zoomIn" title="Aproximar">＋</button>
+          <button class="icon" id="zoomOut" title="Afastar">－</button>
+          <button class="icon" id="zoomFit" title="Enquadrar">⤢</button>
+        </div>
+        <div class="floating bl hint">Arraste para mover · alça laranja gira · <kbd>R</kbd> 90° · <kbd>Q</kbd>/<kbd>E</kbd> 15° · setas ajustam 1 cm (⇧ 10) · <kbd>Alt</kbd> sem ímã</div>
+      </div>
+      <div class="pane" data-pane="high"><div class="three" id="threeHigh"></div>
+        <div class="loading" id="hiLoading">Preparando materiais…</div>
+      </div>
+      <div class="floating tr stage-tools">
+        <button class="tool" id="measureBtn" title="Medir distâncias (M)">📏 Medir</button>
+        <button class="tool" id="measureClear" title="Apagar todas as medidas desta vista" hidden>✕ Limpar medidas</button>
+        <button class="icon" id="fullBtn" title="Tela cheia (F)">⛶</button>
+        <button class="icon" id="sideBtn" title="Recolher painel lateral (\)">⟩</button>
+      </div>
+      <div class="floating bc hint" id="measureHint" hidden><b>Medir:</b> clique e arraste entre dois pontos · ímã em cantos e bordas (<kbd>Alt</kbd> desliga) · <kbd>⇧</kbd> trava no eixo · <kbd>⌫</kbd> apaga a última · <kbd>Esc</kbd> sai</div>
+      <div class="floating bl hint" id="navHint" hidden>Teclado: <kbd>↑</kbd><kbd>↓</kbd> andar · <kbd>←</kbd><kbd>→</kbd> girar · <kbd>W</kbd>/<kbd>S</kbd> sobe/desce · <kbd>A</kbd>/<kbd>D</kbd> lateral · <kbd>Z</kbd> aproxima · <kbd>⇧Z</kbd> afasta · <kbd>⇧</kbd> rápido</div>
+      <div class="floating bl hint walk-hint" id="walkHint" hidden>Modo caminhar: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ou setas · arraste para olhar · <kbd>⇧</kbd> corre · <kbd>Esc</kbd> sai</div>
+    </section>
+
+    <aside class="side">
+      <div class="card status" id="status"></div>
+
+      <div class="card only-3d">
+        <h2>Vistas</h2>
+        <div class="views" id="views"></div>
+        <div class="toggles">
+          <label><input type="checkbox" id="tRoof" checked /> Telhado</label>
+          <label><input type="checkbox" id="tFront" checked /> Fachada de vidro</label>
+          <label><input type="checkbox" id="tExt" checked /> Entorno</label>
+        </div>
+        <div class="row">
+          <button class="btn" id="walkBtn">🚶 Caminhar</button>
+          <button class="btn" id="shotBtn">📷 Salvar PNG</button>
+        </div>
+      </div>
+
+      <div class="card only-plan">
+        <h2>Planta</h2>
+        <div class="toggles">
+          <label><input type="checkbox" id="tGrid" checked /> Grade do piso (80 cm)</label>
+          <label><input type="checkbox" id="tSnap" checked /> Ímã (paredes e móveis)</label>
+          <label><input type="checkbox" id="tSusp" checked /> Mostrar armários suspensos (tracejado)</label>
+        </div>
+        <div class="row">
+          <select id="addSel"><option value="">+ Adicionar item…</option></select>
+        </div>
+      </div>
+
+      <div class="card" id="props">
+        <h2>Item selecionado</h2>
+        <p class="muted" id="noSel">Clique num móvel na planta (ou no 3D) para editar.</p>
+        <form id="propForm" hidden>
+          <label class="full">Nome <input name="nome" type="text" /></label>
+          <label>X (cm) <input name="x" type="number" step="1" /></label>
+          <label>Y (cm) <input name="y" type="number" step="1" /></label>
+          <label>Giro (°) <input name="rot" type="number" step="15" /></label>
+          <label>Altura instal. <input name="elev" type="number" step="1" /></label>
+          <label>Largura L <input name="w" type="number" step="1" /></label>
+          <label>Profund. P <input name="d" type="number" step="1" /></label>
+          <label>Altura A <input name="h" type="number" step="1" /></label>
+          <label class="muted small full" id="origem"></label>
+          <div class="row full">
+            <button type="button" class="btn" data-op="rot90">↻ 90°</button>
+            <button type="button" class="btn" data-op="dup">Duplicar</button>
+            <button type="button" class="btn danger" data-op="del">Excluir</button>
+          </div>
+          <ul class="warns full" id="warns"></ul>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Itens <span class="muted small" id="count"></span></h2>
+        <ul class="list" id="list"></ul>
+      </div>
+    </aside>
+  </main>
+
+  <div class="toast" id="toast" hidden></div>
+  <div class="dlg" id="dlg" hidden role="dialog" aria-modal="true">
+    <div class="dlg-box">
+      <p id="dlgMsg"></p>
+      <input id="dlgInput" type="text" hidden />
+      <div class="row"><button class="btn" id="dlgCancel">Cancelar</button><button class="btn primary" id="dlgOk">OK</button></div>
+    </div>
+  </div>
+  <div class="busy" id="busy" hidden><div><div class="spinner"></div><p id="busyMsg">Gerando…</p></div></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
