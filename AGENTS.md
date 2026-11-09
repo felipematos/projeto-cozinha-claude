@@ -94,6 +94,7 @@ Sistema de coordenadas usado no app (planta vista com a **frente/quintal em cima
 | `js/models.js` | materiais (simples × detalhado) e construção 3D de cada `kind` + ambiente (paredes, persianas, janelões, telhado, entorno) |
 | `js/textures.js` | texturas procedurais (madeira de demolição, granilite, porcelanato, tijolo, palhinha, pratos) + fotos |
 | `js/viewer3d.js` | `Viewer` three.js: órbita, vistas (`VIEWS`), modo caminhar, clique-seleciona, `snapshot()` |
+| `js/i18n.js` | Idiomas pt-BR/en: `t('texto pt', {vars})` (o português é a chave), `tn(nome)` para nomes de móveis (salvos em pt, traduzidos na exibição), `applyStatic` para o index.html, seletor `#langSel`. **Todo texto novo da interface deve passar por `t()` e ter entrada em `EN`.** O PDF do marceneiro fica sempre em português. |
 | `js/export.js` | PDF (jsPDF + svg2pdf, planta vetorial 1:50 + quadro de móveis + páginas 3D) e PNG |
 | `js/main.js` | abas, painel lateral, histórico (desfazer/refazer), menus salvar/exportar, atalhos |
 

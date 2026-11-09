@@ -1,5 +1,7 @@
 # Projeto Cozinha & Copa — Área Coberta
 
+🇧🇷 Português · 🇺🇸 [English](README.en.md)
+
 Projeto arquitetônico para transformar a área coberta dos fundos da casa numa **cozinha + copa semi-aberta**, em estilo rústico com madeira de demolição.
 
 ## 👉 [Abrir o projeto online](https://felipematos.github.io/projeto-cozinha-claude/)
@@ -8,7 +10,7 @@ https://felipematos.github.io/projeto-cozinha-claude/
 
 ## O que é
 
-Aplicação web (sem build, three.js via CDN) com:
+Aplicação web (sem build, three.js via CDN), disponível em **português e inglês** (seletor de idioma no topo), com:
 
 - **Planta baixa interativa**: arrastar, girar e dimensionar móveis, com cotas dinâmicas, ímã, colisões, desfazer/refazer e ferramenta de medição.
 - **Vista 3D detalhada**: órbita, modo caminhar, texturas procedurais, oclusão de ambiente e medição no 3D.

@@ -2,6 +2,7 @@
 import { ROOM, KINDS } from './data.js';
 import { DEFS, roomMarkup, itemMarkup, sortedForDraw } from './plan2d.js';
 import { conflicts } from './state.js';
+import { t, tn, locale } from './i18n.js';
 import { VIEWS } from './viewer3d.js';
 
 // área da planta exportada (cm) → 1:50 = 0,2 mm/cm
@@ -54,9 +55,9 @@ export async function exportPDF(items, { views = [], getViewer, onProgress } = {
 
   // ---------- página 1: planta ----------
   doc.setFont('helvetica', 'bold'); doc.setFontSize(15); doc.setTextColor(...ink);
-  doc.text('Cozinha & Copa — Área Coberta', 10, 12);
+  doc.text(t('Cozinha & Copa — Área Coberta'), 10, 12);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...muted);
-  doc.text(`Planta baixa — layout proposto · escala 1:50 (A4) · medidas em cm · ${new Date().toLocaleDateString('pt-BR')}`, 10, 17);
+  doc.text(t('Planta baixa — layout proposto · escala 1:50 (A4) · medidas em cm · {d}', { d: new Date().toLocaleDateString(locale()) }), 10, 17);
 
   const { el, cleanup, w, h } = exportSVGElement(items);
   const px = 8, py = 21, pw = w * SCALE, ph = h * SCALE;
@@ -67,16 +68,16 @@ export async function exportPDF(items, { views = [], getViewer, onProgress } = {
     console.warn('svg2pdf falhou, usando imagem', err);
     doc.addImage(await svgToPNG(el, w, h, 6), 'PNG', px, py, pw, ph);
   } finally { cleanup(); }
-  onProgress?.('Planta exportada');
+  onProgress?.(t('Planta exportada'));
 
 
   // legenda / quadro de móveis
   let lx = px + pw + 6; const lw = PW - lx - 8; let y = 25;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...ink);
-  doc.text('Quadro de móveis e equipamentos', lx, y); y += 5;
+  doc.text(t('Quadro de móveis e equipamentos'), lx, y); y += 5;
   doc.setFontSize(6.8); doc.setTextColor(...muted);
   const cols = [0, 7, 58, 84];
-  ['Nº', 'Item', 'L × P × A', 'Origem'].forEach((t, i) => doc.text(t, lx + cols[i], y));
+  [t('Nº'), t('Item'), t('L × P × A'), t('Origem')].forEach((h, i) => doc.text(h, lx + cols[i], y));
   y += 1.5; doc.setDrawColor(...muted); doc.line(lx, y, lx + lw, y); y += 3.6;
   const cf = conflicts(items);
   doc.setFont('helvetica', 'normal');
@@ -84,31 +85,31 @@ export async function exportPDF(items, { views = [], getViewer, onProgress } = {
     doc.setTextColor(...(cf[it.id] ? [200, 30, 25] : ink));
     doc.setFont('helvetica', 'bold'); doc.text(String(i + 1), lx + cols[0], y);
     doc.setFont('helvetica', 'normal');
-    doc.text(doc.splitTextToSize(it.nome, 49)[0], lx + cols[1], y);
+    doc.text(doc.splitTextToSize(tn(it.nome), 49)[0], lx + cols[1], y);
     doc.text(`${it.w} × ${it.d} × ${it.h}${it.elev ? `  (h ${it.elev})` : ''}`, lx + cols[2], y);
-    doc.setTextColor(...muted); doc.text(doc.splitTextToSize(String(it.origem || '').replace(' (medidas estimadas)', '*'), 30)[0], lx + cols[3], y);
+    doc.setTextColor(...muted); doc.text(doc.splitTextToSize(t(String(it.origem || '')).replace(' (medidas estimadas)', '*'), 30)[0], lx + cols[3], y);
     y += 4.4;
   });
   y += 2; doc.setDrawColor(...muted); doc.line(lx, y, lx + lw, y); y += 4.5;
   doc.setFontSize(7); doc.setTextColor(...ink); doc.setFont('helvetica', 'bold');
-  doc.text('Envoltória', lx, y); y += 3.8; doc.setFont('helvetica', 'normal'); doc.setTextColor(...muted);
+  doc.text(t('Envoltória'), lx, y); y += 3.8; doc.setFont('helvetica', 'normal'); doc.setTextColor(...muted);
   const env = [
-    `Área coberta ${ROOM.W} × ${ROOM.D} cm; vão interno ${ROOM.innerRight} cm; pé-direito ${ROOM.wallH} cm; telhado 1 água (h ${ROOM.roofHigh} a ${ROOM.roofLow}).`,
-    'Frente: persiana de vidro retrátil; triângulo entre viga e telhado fechado em madeira.',
-    `Direita (da frente ao fundo): ${ROOM.right.map((g) => `${g.tipo === 'persiana' ? 'persiana' : g.tipo === 'meia' ? `meia-parede h=${g.h} + janelão` : 'parede completa'} ${g.y1 - g.y0}`).join(' · ')}; vão livre de ${ROOM.pillars[1].y0 - ROOM.pillars[0].y1} entre os pilares da frente.`,
-    `Esquerda: parede existente da Suíte 2. Fundo: porta 80×210 e janela ${ROOM.window.x1 - ROOM.window.x0}×${ROOM.window.top - ROOM.window.sill} (peitoril ${ROOM.window.sill}) existentes.`,
-    'Acabamentos: madeira de demolição (armários, vigas, molduras), bancada em granilite avermelhado.',
-    'Linhas tracejadas = elementos suspensos (h = altura de instalação). Traço grosso = frente do móvel.',
-    'Itens "novo" foram dimensionados pelo projeto; * = medidas estimadas pela foto.',
+    t('Área coberta {W} × {D} cm; vão interno {IR} cm; pé-direito {H} cm; telhado 1 água (h {a} a {b}).', { W: ROOM.W, D: ROOM.D, IR: ROOM.innerRight, H: ROOM.wallH, a: ROOM.roofHigh, b: ROOM.roofLow }),
+    t('Frente: persiana de vidro retrátil; triângulo entre viga e telhado fechado em madeira.'),
+    t('Direita (da frente ao fundo): {segs}; vão livre de {v} entre os pilares da frente.', { segs: ROOM.right.map((g) => `${g.tipo === 'persiana' ? t('persiana') : g.tipo === 'meia' ? t('meia-parede h={h} + janelão', { h: g.h }) : t('parede completa')} ${g.y1 - g.y0}`).join(' · '), v: ROOM.pillars[1].y0 - ROOM.pillars[0].y1 }),
+    t('Esquerda: parede existente da Suíte 2. Fundo: porta 80×210 e janela {w}×{h} (peitoril {s}) existentes.', { w: ROOM.window.x1 - ROOM.window.x0, h: ROOM.window.top - ROOM.window.sill, s: ROOM.window.sill }),
+    t('Acabamentos: madeira de demolição (armários, vigas, molduras), bancada em granilite avermelhado.'),
+    t('Linhas tracejadas = elementos suspensos (h = altura de instalação). Traço grosso = frente do móvel.'),
+    t('Itens "novo" foram dimensionados pelo projeto; * = medidas estimadas pela foto.'),
   ];
-  for (const t of env) { const lines = doc.splitTextToSize('• ' + t, lw); doc.text(lines, lx, y); y += lines.length * 3.2 + 0.6; }
+  for (const line of env) { const lines = doc.splitTextToSize('• ' + line, lw); doc.text(lines, lx, y); y += lines.length * 3.2 + 0.6; }
   // escala gráfica
-  y += 3; doc.setFontSize(6.5); doc.setTextColor(...ink); doc.text('Escala gráfica (1:50)', lx, y); y += 2.5;
+  y += 3; doc.setFontSize(6.5); doc.setTextColor(...ink); doc.text(t('Escala gráfica (1:50)'), lx, y); y += 2.5;
   for (let i = 0; i < 4; i++) { doc.setFillColor(...(i % 2 ? [255, 255, 255] : ink)); doc.setDrawColor(...ink); doc.setLineWidth(0.2); doc.rect(lx + i * 10, y, 10, 1.6, 'FD'); }
-  ['0', '0,5', '1', '1,5', '2 m'].forEach((t, i) => doc.text(t, lx + i * 10, y + 4.5, { align: 'center' }));
+  ['0', '0,5', '1', '1,5', '2 m'].map((v) => t(v)).forEach((v, i) => doc.text(v, lx + i * 10, y + 4.5, { align: 'center' }));
   y += 8;
   const nConf = Object.keys(cf).length;
-  if (nConf) { y += 1; doc.setTextColor(200, 30, 25); doc.text(doc.splitTextToSize(`Atenção: ${nConf} item(ns) com conflito (em vermelho).`, lw), lx, y); }
+  if (nConf) { y += 1; doc.setTextColor(200, 30, 25); doc.text(doc.splitTextToSize(t('Atenção: {n} item(ns) com conflito (em vermelho).', { n: nConf }), lw), lx, y); }
   doc.setDrawColor(...accent); doc.setLineWidth(0.4); doc.rect(4, 4, PW - 8, PH - 8);
 
   // ---------- páginas 3D ----------
@@ -121,12 +122,12 @@ export async function exportPDF(items, { views = [], getViewer, onProgress } = {
       const url = viewer.snapshot(2400, 1440, 'image/jpeg', 0.9);
       doc.addPage('a4', 'landscape');
       doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...ink);
-      doc.text(`Vista 3D — ${VIEWS[key].nome}`, 10, 12);
+      doc.text(t('Vista 3D — {v}', { v: t(VIEWS[key].nome) }), 10, 12);
       doc.addImage(url, url.startsWith('data:image/jpeg') ? 'JPEG' : 'PNG', 10, 17, 277, 166.2);
       doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...muted);
-      doc.text('Renderização ilustrativa — proporções conforme planta; materiais e cores indicativos.', 10, 190);
+      doc.text(t('Renderização ilustrativa — proporções conforme planta; materiais e cores indicativos.'), 10, 190);
       doc.setDrawColor(...accent); doc.rect(4, 4, PW - 8, PH - 8);
-      onProgress?.(`Vista ${VIEWS[key].nome}`);
+      onProgress?.(t('Vista {v}', { v: t(VIEWS[key].nome) }));
     }
     viewer.camera.position.copy(cam); viewer.controls.target.copy(tgt); viewer.setRoof(roof); viewer.onRoofChange?.(roof);
   }

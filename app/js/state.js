@@ -1,5 +1,6 @@
 // Estado do layout, persistência e geometria (colisões / limites).
 import { ROOM, DEFAULT_ITEMS, KINDS } from './data.js';
+import { t, tn } from './i18n.js';
 
 const LS_KEY = 'cozinha-layout-v1';
 const GEOM = 2; // v2: lado direito em 4,28 m (pilares 30×30) e parede do fundo a partir de 1,08 m
@@ -131,14 +132,14 @@ export function conflicts(items = store.items) {
       const [a0, a1] = zr(a), [b0, b1] = zr(b);
       const zOver = a.kind === 'mesa' || b.kind === 'mesa' ? Math.min(a1, b1) > Math.max(a0, b0) && Math.max(a0, b0) < 100 : Math.min(a1, b1) - Math.max(a0, b0) > 0.5;
       if (!zOver) continue;
-      if (sat(polys[i], polys[j])) { add(a.id, `sobrepõe "${b.nome}"`); add(b.id, `sobrepõe "${a.nome}"`); }
+      if (sat(polys[i], polys[j])) { add(a.id, t('sobrepõe "{nome}"', { nome: tn(b.nome) })); add(b.id, t('sobrepõe "{nome}"', { nome: tn(a.nome) })); }
     }
     // limites do ambiente
     const it = items[i], bb = aabb(it, footprint(it));
     const tol = 0.6;
-    if (bb.x0 < -tol || bb.x1 > ROOM.innerRight + tol || bb.y0 < ROOM.frontInner - tol || bb.y1 > ROOM.D + tol) add(it.id, 'fora dos limites do ambiente');
+    if (bb.x0 < -tol || bb.x1 > ROOM.innerRight + tol || bb.y0 < ROOM.frontInner - tol || bb.y1 > ROOM.D + tol) add(it.id, t('fora dos limites do ambiente'));
     // passagem da porta (área de 90 × 70 cm em frente à porta)
-    if ((it.elev || 0) < 200 && bb.x0 < ROOM.door.x1 + 5 - tol && bb.y1 > ROOM.D - 70 && !KINDS[it.kind]?.parede) add(it.id, 'bloqueia a passagem da porta');
+    if ((it.elev || 0) < 200 && bb.x0 < ROOM.door.x1 + 5 - tol && bb.y1 > ROOM.D - 70 && !KINDS[it.kind]?.parede) add(it.id, t('bloqueia a passagem da porta'));
   }
   return out;
 }

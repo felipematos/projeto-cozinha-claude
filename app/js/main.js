@@ -2,6 +2,7 @@
 import { store, loadLocal, saveLocal, listVersions, saveVersion, deleteVersion, conflicts, norm, migrateItems } from './state.js';
 import { KINDS, CATALOG, DEFAULT_ITEMS } from './data.js';
 import { PlanEditor } from './plan2d.js';
+import { t, tn, getLang, setLang, onLangChange, applyStatic, locale } from './i18n.js';
 import { exportPDF, exportPlanPNG, download, stamp } from './export.js';
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -27,10 +28,13 @@ async function getViewer(kind) {
   if (!$('#views').childElementCount) buildViewButtons(viewerMod.VIEWS);
   return v;
 }
+let viewDefs = null;
 function buildViewButtons(VIEWS) {
-  $('#views').innerHTML = Object.entries(VIEWS).map(([k, v]) => `<button data-view="${k}">${v.nome}</button>`).join('');
-  $('#views').addEventListener('click', (e) => { const b = e.target.closest('[data-view]'); if (b) activeViewer()?.setView(b.dataset.view); });
+  if (VIEWS) viewDefs = VIEWS;
+  if (!viewDefs) return;
+  $('#views').innerHTML = Object.entries(viewDefs).map(([k, v]) => `<button data-view="${k}">${t(v.nome)}</button>`).join('');
 }
+$('#views').addEventListener('click', (e) => { const b = e.target.closest('[data-view]'); if (b) activeViewer()?.setView(b.dataset.view); });
 const activeViewer = () => (current === 'plan' ? null : viewers[current]);
 
 // ---------------------------------------------------------------- abas
@@ -70,10 +74,11 @@ $('#zoomOut').addEventListener('click', () => plan.zoom(1.25));
 $('#zoomFit').addEventListener('click', () => plan.fit());
 
 // ---------------------------------------------------------------- catálogo
-$('#addSel').innerHTML += CATALOG.map((c, i) => `<option value="${i}">${c.nome} (${c.w}×${c.d})</option>`).join('');
+const buildCatalog = () => { $('#addSel').innerHTML = `<option value="">${t('+ Adicionar item…')}</option>` + CATALOG.map((c, i) => `<option value="${i}">${tn(c.nome)} (${c.w}×${c.d})</option>`).join(''); };
+buildCatalog();
 $('#addSel').addEventListener('change', (e) => {
   const c = CATALOG[+e.target.value]; e.target.value = '';
-  if (c) { store.add({ ...c }); toast(`"${c.nome}" adicionado no centro — arraste para posicionar.`); }
+  if (c) { store.add({ ...c }); toast(t('"{nome}" adicionado no centro — arraste para posicionar.', { nome: tn(c.nome) })); }
 });
 
 // ---------------------------------------------------------------- painel do item
@@ -83,8 +88,8 @@ function fillForm() {
   const it = store.selected;
   form.hidden = !it; $('#noSel').hidden = !!it;
   if (!it) return;
-  for (const k of ['nome', ...NUM]) { const inp = form.elements[k]; if (document.activeElement !== inp) inp.value = k === 'nome' ? it.nome : Math.round((it[k] || 0) * 10) / 10; }
-  $('#origem').textContent = `${KINDS[it.kind]?.label || it.kind} · ${it.origem || ''}`;
+  for (const k of ['nome', ...NUM]) { const inp = form.elements[k]; if (document.activeElement !== inp) inp.value = k === 'nome' ? tn(it.nome) : Math.round((it[k] || 0) * 10) / 10; }
+  $('#origem').textContent = `${t(KINDS[it.kind]?.label || it.kind)} · ${t(it.origem || '')}`;
   const cf = conflicts(store.items)[it.id] || [];
   $('#warns').innerHTML = cf.map((m) => `<li>⚠ ${m}</li>`).join('');
 }
@@ -113,16 +118,16 @@ function renderList() {
   for (const z of ['Cozinha', 'Copa']) {
     const its = store.items.filter((i) => zone(i) === z);
     if (!its.length) continue;
-    html += `<li class="grp">${z}</li>`;
-    html += its.map((it) => `<li class="it${it.id === store.selectedId ? ' on' : ''}${cf[it.id] ? ' bad' : ''}" data-id="${it.id}"><span class="sw" style="background:${CATCOLOR[KINDS[it.kind]?.cat] || '#ccc'}"></span><span class="nm">${it.nome}</span><span class="dim">${it.w}×${it.d}×${it.h}</span></li>`).join('');
+    html += `<li class="grp">${t(z)}</li>`;
+    html += its.map((it) => `<li class="it${it.id === store.selectedId ? ' on' : ''}${cf[it.id] ? ' bad' : ''}" data-id="${it.id}"><span class="sw" style="background:${CATCOLOR[KINDS[it.kind]?.cat] || '#ccc'}"></span><span class="nm">${tn(it.nome)}</span><span class="dim">${it.w}×${it.d}×${it.h}</span></li>`).join('');
   }
   $('#list').innerHTML = html;
   $('#count').textContent = `(${store.items.length})`;
   const n = Object.keys(cf).length, st = $('#status');
   st.className = 'card status ' + (n ? 'bad' : 'ok');
   st.innerHTML = n
-    ? `<span class="dot"></span><div><b>${n} item(ns) com conflito</b><ul>${Object.entries(cf).slice(0, 6).map(([id, m]) => `<li>${store.get(id)?.nome}: ${m[0]}</li>`).join('')}</ul></div>`
-    : `<span class="dot"></span><div><b>Layout sem conflitos</b><div class="muted small">Nenhuma sobreposição; passagem da porta livre. Salvo automaticamente.</div></div>`;
+    ? `<span class="dot"></span><div><b>${t('{n} item(ns) com conflito', { n })}</b><ul>${Object.entries(cf).slice(0, 6).map(([id, m]) => `<li>${tn(store.get(id)?.nome)}: ${m[0]}</li>`).join('')}</ul></div>`
+    : `<span class="dot"></span><div><b>${t('Layout sem conflitos')}</b><div class="muted small">${t('Nenhuma sobreposição; passagem da porta livre. Salvo automaticamente.')}</div></div>`;
 }
 $('#list').addEventListener('click', (e) => { const li = e.target.closest('li.it'); if (li) store.select(li.dataset.id); });
 
@@ -151,7 +156,7 @@ window.addEventListener('keydown', (e) => {
   const t = e.target; if (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA') return;
   const mod = e.metaKey || e.ctrlKey;
   if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
-  if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveLocal(); toast('Layout salvo neste navegador.'); return; }
+  if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); saveLocal(); toast(t('Layout salvo neste navegador.')); return; }
   const v = activeViewer();
   if (!mod && (e.key === 'm' || e.key === 'M') && !v?.walk) { setMeasure(!measureOn); return; }
   if (!mod && (e.key === 'f' || e.key === 'F') && !v?.walk) { toggleFullscreen(); return; }
@@ -185,31 +190,31 @@ document.addEventListener('click', (e) => { if (!e.target.closest('.menu-pop')) 
 
 function renderVersions() {
   const v = listVersions();
-  $('#versions').innerHTML = v.length ? v.map((x) => `<button data-ver="${encodeURIComponent(x.nome)}"><span>↺ ${x.nome}</span><span class="x" data-delver="${encodeURIComponent(x.nome)}" title="Apagar versão">×</span></button>`).join('') : '';
+  $('#versions').innerHTML = v.length ? v.map((x) => `<button data-ver="${encodeURIComponent(x.nome)}"><span>↺ ${x.nome}</span><span class="x" data-delver="${encodeURIComponent(x.nome)}" title="${t('Apagar versão')}">×</span></button>`).join('') : '';
 }
 $('#versions').addEventListener('click', (e) => {
   const del = e.target.closest('[data-delver]');
   if (del) {
     e.stopPropagation(); const n = decodeURIComponent(del.dataset.delver);
-    ask(`Apagar a versão "${n}"?`, { ok: 'Apagar', danger: true }).then((r) => { if (r !== null) { deleteVersion(n); renderVersions(); toast(`Versão "${n}" apagada.`); } });
+    ask(t('Apagar a versão "{n}"?', { n }), { ok: t('Apagar'), danger: true }).then((r) => { if (r !== null) { deleteVersion(n); renderVersions(); toast(t('Versão "{n}" apagada.', { n })); } });
     return;
   }
   const b = e.target.closest('[data-ver]'); if (!b) return;
   const n = decodeURIComponent(b.dataset.ver), ver = listVersions().find((x) => x.nome === n);
-  if (ver) { store.setItems(migrateItems(ver.items, ver.geom)); toast(`Versão "${n}" carregada.`); }
+  if (ver) { store.setItems(migrateItems(ver.items, ver.geom)); toast(t('Versão "{n}" carregada.', { n })); }
 });
 
 const ACTS = {
-  save: () => { saveLocal(); toast('Layout salvo neste navegador.'); },
+  save: () => { saveLocal(); toast(t('Layout salvo neste navegador.')); },
   saveVersion: async () => {
-    const n = await ask('Nome da versão:', { input: `Versão ${new Date().toLocaleString('pt-BR')}`, ok: 'Salvar' });
-    if (n && n.trim()) { saveVersion(n.trim()); toast(`Versão "${n.trim()}" salva.`); }
+    const n = await ask(t('Nome da versão:'), { input: t('Versão {d}', { d: new Date().toLocaleString(locale()) }), ok: t('Salvar') });
+    if (n && n.trim()) { saveVersion(n.trim()); toast(t('Versão "{n}" salva.', { n: n.trim() })); }
   },
   downloadJSON: () => download(URL.createObjectURL(new Blob([JSON.stringify(store.toJSON(), null, 2)], { type: 'application/json' })), `layout-cozinha_${stamp()}.json`),
   openJSON: () => $('#fileJSON').click(),
   reset: async () => {
-    if ((await ask('Descartar o layout atual e voltar à proposta original?', { ok: 'Restaurar', danger: true })) !== null) {
-      store.setItems(DEFAULT_ITEMS); toast('Proposta original restaurada.', { label: 'Desfazer', fn: undo });
+    if ((await ask(t('Descartar o layout atual e voltar à proposta original?'), { ok: t('Restaurar'), danger: true })) !== null) {
+      store.setItems(DEFAULT_ITEMS); toast(t('Proposta original restaurada.'), { label: t('Desfazer'), fn: undo });
     }
   },
   pdfPlan: () => busy('Gerando PDF da planta…', () => exportPDF(store.items)),
@@ -222,7 +227,7 @@ const ACTS = {
     const { exportMarcenaria } = await import('./projeto_marcenaria.js');
     await exportMarcenaria(store.items, {
       getViewer: async () => { const v = await getViewer('high'); await (await import('./textures.js')).whenTexturesLoaded(); return v; },
-      onProgress: (m) => { $('#busyMsg').textContent = `Gerando o projeto dos armários… ${m}`; },
+      onProgress: (m) => { $('#busyMsg').textContent = `${t('Gerando o projeto dos armários…')} ${m}`; },
     });
   }),
   pngView: () => shotCurrent(),
@@ -242,15 +247,15 @@ $('#marcenariaBtn').addEventListener('click', () => ACTS.marcenaria());
 $$('[data-act]').forEach((b) => b.addEventListener('click', () => { $$('.menu').forEach((x) => x.classList.remove('open')); ACTS[b.dataset.act]?.(); }));
 $('#fileJSON').addEventListener('change', async (e) => {
   const f = e.target.files[0]; e.target.value = ''; if (!f) return;
-  try { const data = JSON.parse(await f.text()); if (!Array.isArray(data.items)) throw new Error('formato'); store.setItems(migrateItems(data.items, data.geom)); toast(`Layout "${f.name}" carregado.`); }
-  catch { toast('Arquivo inválido — esperado um layout .json exportado por este app.'); }
+  try { const data = JSON.parse(await f.text()); if (!Array.isArray(data.items)) throw new Error('formato'); store.setItems(migrateItems(data.items, data.geom)); toast(t('Layout "{f}" carregado.', { f: f.name })); }
+  catch { toast(t('Arquivo inválido — esperado um layout .json exportado por este app.')); }
 });
 
 async function shotCurrent() {
   let v = activeViewer();
   if (!v) { await setTab('high'); v = viewers.high; }
   download(v.snapshot(2400, 1500), `cozinha-3d-${current}_${stamp()}.png`);
-  toast('Imagem PNG salva (2400×1500).');
+  toast(t('Imagem PNG salva (2400×1500).'));
 }
 
 // ---------------------------------------------------------------- utilidades de UI
@@ -270,11 +275,11 @@ function toast(msg, action) {
 /** Exclui o item na hora (sem diálogo nativo, que navegadores embutidos bloqueiam) e oferece Desfazer. */
 function removeItem(it) {
   store.remove(it.id);
-  toast(`"${it.nome}" excluído.`, { label: 'Desfazer', fn: undo });
+  toast(t('"{nome}" excluído.', { nome: tn(it.nome) }), { label: t('Desfazer'), fn: undo });
 }
 
 /** Diálogo próprio (substitui confirm/prompt). Resolve com o texto/'' ao confirmar, ou null ao cancelar. */
-function ask(msg, { input = null, ok = 'OK', cancel = 'Cancelar', danger = false } = {}) {
+function ask(msg, { input = null, ok = 'OK', cancel = t('Cancelar'), danger = false } = {}) {
   const d = $('#dlg'), inp = $('#dlgInput'), okB = $('#dlgOk'), cB = $('#dlgCancel');
   $('#dlgMsg').textContent = msg;
   inp.hidden = input === null; inp.value = input ?? '';
@@ -290,9 +295,9 @@ function ask(msg, { input = null, ok = 'OK', cancel = 'Cancelar', danger = false
   });
 }
 async function busy(msg, fn) {
-  $('#busyMsg').textContent = msg; $('#busy').hidden = false;
-  try { await new Promise((r) => setTimeout(r, 30)); await fn(); toast('Exportação concluída.'); }
-  catch (err) { console.error(err); toast('Falha na exportação: ' + err.message); }
+  $('#busyMsg').textContent = t(msg); $('#busy').hidden = false;
+  try { await new Promise((r) => setTimeout(r, 30)); await fn(); toast(t('Exportação concluída.')); }
+  catch (err) { console.error(err); toast(t('Falha na exportação: ') + err.message); }
   finally { $('#busy').hidden = true; }
 }
 
@@ -311,11 +316,11 @@ function setMeasure(on) {
 }
 function updateMeasureUI() {
   $('#measureBtn').classList.toggle('on', measureOn);
-  $('#measureBtn').textContent = measureOn ? '📏 Medindo…' : '📏 Medir';
+  $('#measureBtn').textContent = t(measureOn ? '📏 Medindo…' : '📏 Medir');
   $('#measureHint').hidden = !measureOn;
   const n = measureTarget()?.measures?.length || 0;
   $('#measureClear').hidden = !n;
-  $('#measureClear').textContent = `✕ Limpar medidas (${n})`;
+  $('#measureClear').textContent = t('✕ Limpar medidas ({n})', { n });
 }
 plan.onMeasuresChange = () => { if (current === 'plan') updateMeasureUI(); };
 $('#measureBtn').addEventListener('click', () => setMeasure(!measureOn));
@@ -328,7 +333,7 @@ const isFull = () => !!document.fullscreenElement || document.body.classList.con
 function fullUI() {
   const on = isFull();
   $('#fullBtn').textContent = on ? '🗗' : '⛶';
-  $('#fullBtn').title = on ? 'Sair da tela cheia (F ou Esc)' : 'Tela cheia (F)';
+  $('#fullBtn').title = t(on ? 'Sair da tela cheia (F ou Esc)' : 'Tela cheia (F)');
   $('#sideBtn').hidden = on;
 }
 async function toggleFullscreen() {
@@ -348,13 +353,21 @@ $('#fullBtn').addEventListener('click', toggleFullscreen);
 function setSide(collapsed) {
   document.body.classList.toggle('side-collapsed', collapsed);
   $('#sideBtn').textContent = collapsed ? '⟨' : '⟩';
-  $('#sideBtn').title = collapsed ? 'Mostrar painel lateral (\\)' : 'Recolher painel lateral (\\)';
+  $('#sideBtn').title = t(collapsed ? 'Mostrar painel lateral (\\)' : 'Recolher painel lateral (\\)');
   try { localStorage.setItem('cozinha-painel', collapsed ? '1' : '0'); } catch { /* */ }
 }
 const toggleSide = () => setSide(!document.body.classList.contains('side-collapsed'));
 $('#sideBtn').addEventListener('click', toggleSide);
 try { if (localStorage.getItem('cozinha-painel') === '1') setSide(true); } catch { /* */ }
 
+// ---------------------------------------------------------------- idioma
+$('#langSel').value = getLang();
+$('#langSel').addEventListener('change', (e) => setLang(e.target.value));
+onLangChange(() => {
+  buildCatalog(); buildViewButtons(); renderVersions(); fillForm(); renderList(); updateMeasureUI(); fullUI();
+  setSide(document.body.classList.contains('side-collapsed')); plan.renderRoom(); plan.render();
+});
+applyStatic(); buildCatalog();
 fillForm(); renderList(); updateMeasureUI();
 let saved = null; try { saved = localStorage.getItem('cozinha-tab'); } catch { /* */ }
 const hashTab = location.hash.slice(1);

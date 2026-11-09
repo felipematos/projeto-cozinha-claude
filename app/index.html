@@ -30,6 +30,7 @@
       <button role="tab" data-tab="high">3D</button>
     </nav>
     <div class="actions">
+      <select id="langSel" class="lang" aria-label="Idioma"><option value="pt">🇧🇷 Português</option><option value="en">🇺🇸 English</option></select>
       <button class="icon" id="undo" title="Desfazer (⌘Z)">↶</button>
       <button class="icon" id="redo" title="Refazer (⇧⌘Z)">↷</button>
       <button class="btn" id="marcenariaBtn" title="Gerar o projeto dos armários em PDF para o marceneiro">🪚 Projeto dos armários</button>
@@ -71,7 +72,7 @@
           <button class="icon" id="zoomOut" title="Afastar">－</button>
           <button class="icon" id="zoomFit" title="Enquadrar">⤢</button>
         </div>
-        <div class="floating bl hint">Arraste para mover · alça laranja gira · <kbd>R</kbd> 90° · <kbd>Q</kbd>/<kbd>E</kbd> 15° · setas ajustam 1 cm (⇧ 10) · <kbd>Alt</kbd> sem ímã</div>
+        <div class="floating bl hint" data-i18n-html="hintPlan">Arraste para mover · alça laranja gira · <kbd>R</kbd> 90° · <kbd>Q</kbd>/<kbd>E</kbd> 15° · setas ajustam 1 cm (⇧ 10) · <kbd>Alt</kbd> sem ímã</div>
       </div>
       <div class="pane" data-pane="high"><div class="three" id="threeHigh"></div>
         <div class="loading" id="hiLoading">Preparando materiais…</div>
@@ -82,9 +83,9 @@
         <button class="icon" id="fullBtn" title="Tela cheia (F)">⛶</button>
         <button class="icon" id="sideBtn" title="Recolher painel lateral (\)">⟩</button>
       </div>
-      <div class="floating bc hint" id="measureHint" hidden><b>Medir:</b> clique e arraste entre dois pontos · ímã em cantos e bordas (<kbd>Alt</kbd> desliga) · <kbd>⇧</kbd> trava no eixo · <kbd>⌫</kbd> apaga a última · <kbd>Esc</kbd> sai</div>
-      <div class="floating bl hint" id="navHint" hidden>Teclado: <kbd>↑</kbd><kbd>↓</kbd> andar · <kbd>←</kbd><kbd>→</kbd> girar · <kbd>W</kbd>/<kbd>S</kbd> sobe/desce · <kbd>A</kbd>/<kbd>D</kbd> lateral · <kbd>Z</kbd> aproxima · <kbd>⇧Z</kbd> afasta · <kbd>⇧</kbd> rápido</div>
-      <div class="floating bl hint walk-hint" id="walkHint" hidden>Modo caminhar: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ou setas · arraste para olhar · <kbd>⇧</kbd> corre · <kbd>Esc</kbd> sai</div>
+      <div class="floating bc hint" id="measureHint" data-i18n-html="hintMeasure" hidden><b>Medir:</b> clique e arraste entre dois pontos · ímã em cantos e bordas (<kbd>Alt</kbd> desliga) · <kbd>⇧</kbd> trava no eixo · <kbd>⌫</kbd> apaga a última · <kbd>Esc</kbd> sai</div>
+      <div class="floating bl hint" id="navHint" data-i18n-html="hintNav" hidden>Teclado: <kbd>↑</kbd><kbd>↓</kbd> andar · <kbd>←</kbd><kbd>→</kbd> girar · <kbd>W</kbd>/<kbd>S</kbd> sobe/desce · <kbd>A</kbd>/<kbd>D</kbd> lateral · <kbd>Z</kbd> aproxima · <kbd>⇧Z</kbd> afasta · <kbd>⇧</kbd> rápido</div>
+      <div class="floating bl hint walk-hint" id="walkHint" data-i18n-html="hintWalk" hidden>Modo caminhar: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> ou setas · arraste para olhar · <kbd>⇧</kbd> corre · <kbd>Esc</kbd> sai</div>
     </section>
 
     <aside class="side">

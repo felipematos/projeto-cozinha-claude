@@ -140,3 +140,5 @@ body[data-tab="plan"] .only-3d { display: none; }
   #measureHint:not([hidden]) { display: flex; font-size: 11px; bottom: 12px; }
   .tool { padding: 0 8px; }
 }
+
+.lang { width: auto; color: #2b2118; background: #fff; padding: 6px 8px; border-radius: 8px; font-size: 13px; cursor: pointer; }

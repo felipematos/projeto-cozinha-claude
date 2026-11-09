@@ -1,5 +1,6 @@
 // Planta baixa interativa (SVG em centímetros). As funções *Markup também são usadas na exportação PDF.
 import { ROOM, KINDS, clearSpan, lenhaChimney } from './data.js';
+import { t, dec } from './i18n.js';
 import { conflicts, aabb, footprint, wallGaps, norm, corners } from './state.js';
 
 const R = ROOM;
@@ -35,10 +36,10 @@ export function roomMarkup({ grid = true } = {}) {
   s += `<rect x="${IR}" y="-90" width="${R.lot.sideWallX - IR}" height="${D + 90}" fill="#ece8e0"/>`;
   s += `<rect x="-140" y="-145" width="${R.lot.sideWallX + 140}" height="145" fill="#e3ebd9"/>`;
   s += `<rect x="${R.lot.sideWallX}" y="-145" width="13" height="${D + 145}" fill="#9aa096"/>`;
-  s += txt(R.lot.sideWallX + 22, 300, 'muro de divisa', 8, '#6b6f68', 90);
-  s += txt(-80, -132, 'QUINTAL', 11, '#6f8a58', 0, 'bold');
-  s += txt(-75, 320, 'SUÍTE 2', 11, '#8b8174', -90, 'bold');
-  s += txt(300, D + 75, 'CASA (antiga cozinha / sala)', 10, '#8b8174', 0, 'bold');
+  s += txt(R.lot.sideWallX + 22, 300, t('muro de divisa'), 8, '#6b6f68', 90);
+  s += txt(-80, -132, t('QUINTAL'), 11, '#6f8a58', 0, 'bold');
+  s += txt(-75, 320, t('SUÍTE 2'), 11, '#8b8174', -90, 'bold');
+  s += txt(300, D + 75, t('CASA (antiga cozinha / sala)'), 10, '#8b8174', 0, 'bold');
   // piso
   s += `<rect x="0" y="0" width="${IR}" height="${D}" fill="#fbf8f1"/>`;
   if (grid) {
@@ -47,11 +48,11 @@ export function roomMarkup({ grid = true } = {}) {
   }
   // divisão de zonas
   s += `<line x1="0" y1="330" x2="${IR}" y2="330" stroke="#b9a58c" stroke-width="0.8" stroke-dasharray="14 4 2 4"/>`;
-  s += txt(IR - 6, 322, 'COPA (frente)', 8, '#9b8468', 0, 'bold', 'end');
-  s += txt(IR - 6, 344, 'COZINHA (fundo)', 8, '#9b8468', 0, 'bold', 'end');
+  s += txt(IR - 6, 322, t('COPA (frente)'), 8, '#9b8468', 0, 'bold', 'end');
+  s += txt(IR - 6, 344, t('COZINHA (fundo)'), 8, '#9b8468', 0, 'bold', 'end');
   // projeção do beiral
   s += `<polyline points="-20,${-R.overhangFront} ${W + R.overhangRight},${-R.overhangFront} ${W + R.overhangRight},${D + 20}" fill="none" stroke="#8b8174" stroke-width="0.9" stroke-dasharray="8 5"/>`;
-  s += txt(120, -R.overhangFront - 5, 'projeção do beiral', 7.5, '#8b8174');
+  s += txt(120, -R.overhangFront - 5, t('projeção do beiral'), 7.5, '#8b8174');
   // parede da suíte (existente) — hachura
   s += `<rect x="-20" y="0" width="20" height="${D + 20}" fill="url(#hatchExist)" stroke="${INK}" stroke-width="1.4"/>`;
   s += `<rect x="-130" y="0" width="110" height="20" fill="url(#hatchExist)" stroke="${INK}" stroke-width="1.2"/>`;
@@ -61,17 +62,17 @@ export function roomMarkup({ grid = true } = {}) {
   s += `<rect x="-20" y="${D}" width="${dw.x0 + 20}" height="20" fill="url(#hatchExist)" stroke="${INK}" stroke-width="1.4"/>`;
   s += `<rect x="${wn.x0}" y="${D}" width="${wn.x1 - wn.x0}" height="20" fill="#fff" stroke="${INK}" stroke-width="1"/>`;
   s += `<line x1="${wn.x0}" y1="${D + 8}" x2="${wn.x1}" y2="${D + 8}" stroke="${INK}" stroke-width="0.8"/><line x1="${wn.x0}" y1="${D + 12}" x2="${wn.x1}" y2="${D + 12}" stroke="${INK}" stroke-width="0.8"/>`;
-  s += txt((wn.x0 + wn.x1) / 2, D + 34, `janela existente ${String(wn.x1 - wn.x0).replace('.', ',')}×${wn.top - wn.sill} / peitoril ${wn.sill}`, 7, '#5d4a36');
+  s += txt((wn.x0 + wn.x1) / 2, D + 34, t('janela existente {w}×{h} / peitoril {s}', { w: dec(wn.x1 - wn.x0), h: wn.top - wn.sill, s: wn.sill }), 7, '#5d4a36');
   if (R.azulejos) {
     const A = R.azulejos;
     s += `<rect x="${A.x0}" y="${D - 2}" width="${A.x1 - A.x0}" height="2" fill="#5f86b8" stroke="none"/>`;
-    s += txt((A.x0 + A.x1) / 2 + 40, D + 44, `azulejos antigos ${A.peca}×${A.peca} (h ${A.y0}–${A.y1})`, 6.5, '#3a5f9a');
+    s += txt((A.x0 + A.x1) / 2 + 40, D + 44, t('azulejos antigos {p}×{p} (h {a}–{b})', { p: A.peca, a: A.y0, b: A.y1 }), 6.5, '#3a5f9a');
   }
   // porta (abre para dentro da casa)
   s += `<line x1="${dw.x1}" y1="${D + 20}" x2="${dw.x1}" y2="${D + 20 + (dw.x1 - dw.x0)}" stroke="${INK}" stroke-width="1.6"/>`;
   const dr = dw.x1 - dw.x0;
   s += `<path d="M ${dw.x0} ${D + 20} A ${dr} ${dr} 0 0 0 ${dw.x1} ${D + 20 + dr}" fill="none" stroke="${INK}" stroke-width="0.7" stroke-dasharray="3 2"/>`;
-  s += txt((dw.x0 + dw.x1) / 2 - 8, D + 52, 'P 80×210', 7, '#5d4a36');
+  s += txt((dw.x0 + dw.x1) / 2 - 8, D + 52, t('P 80×210'), 7, '#5d4a36');
   s += `<rect x="0" y="${D - 70}" width="90" height="70" fill="url(#hatchDoor)" stroke="none"/>`;
   // lado direito: persiana, meia-parede, parede completa, pilares
   const WT = W - IR, xm = IR + WT / 2;
@@ -81,16 +82,16 @@ export function roomMarkup({ grid = true } = {}) {
     else if (seg.tipo === 'meia') {
       s += `<rect x="${IR}" y="${y0}" width="${WT}" height="${h}" fill="#e9dccb" stroke="${INK}" stroke-width="1"/>`;
       s += `<line x1="${xm - 3}" y1="${cs.y0}" x2="${xm - 3}" y2="${cs.y1}" stroke="#3a6b8a" stroke-width="0.9"/><line x1="${xm + 3}" y1="${cs.y0}" x2="${xm + 3}" y2="${cs.y1}" stroke="#3a6b8a" stroke-width="0.9"/>`;
-      s += txt(W + 14, (seg.y0 + seg.y1) / 2, 'meia-parede h=110 + janelão', 7.5, '#3a6b8a', 90);
+      s += txt(W + 14, (seg.y0 + seg.y1) / 2, t('meia-parede h=110 + janelão'), 7.5, '#3a6b8a', 90);
     } else {
       s += glass(xm, cs.y0, xm, cs.y1);
-      s += txt(W + 14, (seg.y0 + seg.y1) / 2 + 5, 'persiana de vidro', 7.5, '#3a6b8a', 90);
+      s += txt(W + 14, (seg.y0 + seg.y1) / 2 + 5, t('persiana de vidro'), 7.5, '#3a6b8a', 90);
     }
   }
   for (const p of R.pillars) s += `<rect x="${p.x0}" y="${p.y0}" width="${p.x1 - p.x0}" height="${p.y1 - p.y0}" fill="${INK}"/>`;
   // frente: persiana de vidro retrátil
   s += glass(0, R.frontInner / 2, IR, R.frontInner / 2);
-  s += txt(IR / 2, -10, 'persiana de vidro retrátil (triângulo superior em madeira)', 8, '#3a6b8a');
+  s += txt(IR / 2, -10, t('persiana de vidro retrátil (triângulo superior em madeira)'), 8, '#3a6b8a');
   s += dimsMarkup();
   return s;
 }
@@ -128,8 +129,8 @@ export function dimLine(x1, y1, x2, y2, label, { color = '#5d4a36', size = 8, ti
 function dimsMarkup() {
   const W = R.W, D = R.D, IR = R.innerRight;
   let s = '';
-  s += dimLine(-20, -118, W, -118, `${W + 20} (área coberta ${W} + parede)`);
-  s += dimLine(0, -98, IR, -98, `${IR} vão interno`);
+  s += dimLine(-20, -118, W, -118, t('{n} (área coberta {w} + parede)', { n: W + 20, w: W }));
+  s += dimLine(0, -98, IR, -98, t('{n} vão interno', { n: IR }));
   s += dimLine(IR, -98, W, -98, `${W - IR}`);
   s += dimLine(-50, 0, -50, D, `${D}`);
   let y = 0;
@@ -283,7 +284,7 @@ export function itemMarkup(it, { conflict = false, selected = false, number = nu
   const up = norm(it.rot) > 90 && norm(it.rot) <= 270 ? 180 : 0;
   const along = w >= d * 0.8 || it.kind === 'mesa';
   const big = Math.max(w, d), small = Math.min(w, d);
-  const label = number != null ? `${number}` : (SHORT[it.kind] || it.kind);
+  const label = number != null ? `${number}` : t(SHORT[it.kind] || it.kind);
   const fs = number != null ? Math.min(14, Math.max(7, small * 0.4)) : Math.max(5.5, Math.min(10, small * 0.24, (big * 1.6) / Math.max(4, label.length)));
   const tr = along ? up : (norm(it.rot) >= 180 ? 90 : -90);
   const susp = cat === 'suspenso' || !!KINDS[it.kind]?.small;
