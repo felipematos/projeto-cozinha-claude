@@ -4,10 +4,11 @@ import { ROOM, KINDS } from './data.js';
 import { DEFS, roomMarkup, itemMarkup, sortedForDraw, dimLine } from './plan2d.js';
 import { CAB_KINDS, cabinetSpec, topSpec } from './marcenaria.js';
 import { stamp } from './export.js';
+import { t as tr, tn, dec, locale } from './i18n.js';
 
 const INK = [43, 33, 24], MUTED = [110, 95, 80], ACC = [181, 83, 47];
 const FONT = 'helvetica, Arial, sans-serif';
-const n1 = (v) => (Math.round(v * 10) / 10).toString().replace('.', ',');
+const n1 = (v) => dec(Math.round(v * 10) / 10);
 const f = (v) => Math.round(v * 100) / 100;
 
 function mountSVG(markup) {
@@ -26,9 +27,9 @@ function wallSides(it) {
   const r = (it.rot * Math.PI) / 180, P = (lx, ly) => ({ x: it.x + lx * Math.cos(r) - ly * Math.sin(r), y: it.y + lx * Math.sin(r) + ly * Math.cos(r) });
   const T = 3, lines = [(p) => Math.abs(p.x) < T, (p) => Math.abs(p.x - ROOM.innerRight) < T, (p) => Math.abs(p.y - ROOM.D) < T, (p) => Math.abs(p.y - ROOM.frontInner) < T];
   const on = (pts) => lines.some((fn) => pts.every(fn)), hw = it.w / 2, hd = it.d / 2, out = [];
-  if (on([P(-hw, hd), P(hw, hd)])) out.push(`fundo ${n1(it.w)} cm`);
-  if (on([P(-hw, -hd), P(-hw, hd)])) out.push(`lateral ${n1(it.d)} cm`);
-  if (on([P(hw, -hd), P(hw, hd)])) out.push(`lateral ${n1(it.d)} cm`);
+  if (on([P(-hw, hd), P(hw, hd)])) out.push(tr('fundo {n} cm', { n: n1(it.w) }));
+  if (on([P(-hw, -hd), P(-hw, hd)])) out.push(tr('lateral {n} cm', { n: n1(it.d) }));
+  if (on([P(hw, -hd), P(hw, hd)])) out.push(tr('lateral {n} cm', { n: n1(it.d) }));
   return out;
 }
 
@@ -45,7 +46,7 @@ function elevationSVG(spec, scale) {
   let s = '';
   // piso
   s += `<line x1="-25" y1="0" x2="${W + gap + D + 25}" y2="0" stroke="#2b2118" stroke-width="${sw * 1.6}"/>`;
-  s += `<text x="-24" y="${f(fs * 1.4)}" font-family="${FONT}" font-size="${f(fs * 0.85)}" fill="#6e5f50">piso</text>`;
+  s += `<text x="-24" y="${f(fs * 1.4)}" font-family="${FONT}" font-size="${f(fs * 0.85)}" fill="#6e5f50">${tr('piso')}</text>`;
   // corpo
   s += `<rect x="0" y="${Y(H)}" width="${W}" height="${H}" fill="#f7efe3" stroke="#2b2118" stroke-width="${sw * 1.4}"/>`;
   if (spec.kind === 'bancada') {
@@ -69,8 +70,8 @@ function elevationSVG(spec, scale) {
     }
     if (p.knob) s += `<circle cx="${f(X(p.knob[0]))}" cy="${f(Y(p.knob[1]))}" r="${f(Math.max(1.4, fs * 0.28))}" fill="#1d1b1a"/>`;
     let label;
-    if (LBL[p.tipo]) { count[p.tipo] = (count[p.tipo] || 0) + 1; label = `${LBL[p.tipo]}${count[p.tipo]}`; p.ref = label; }
-    else label = p.tipo === 'lavaloucas' ? 'LAVA-LOUÇAS' : 'FIXO';
+    if (LBL[p.tipo]) { count[p.tipo] = (count[p.tipo] || 0) + 1; label = `${tr(LBL[p.tipo])}${count[p.tipo]}`; p.ref = label; }
+    else label = p.tipo === 'lavaloucas' ? tr('LAVA-LOUÇAS') : tr('FIXO');
     const tfs = Math.min(fs, h * 0.28, w * 0.18);
     s += `<text x="${f(cx)}" y="${f(cy - tfs * 0.15)}" font-family="${FONT}" font-size="${f(tfs)}" font-weight="bold" fill="#2b2118" text-anchor="middle">${label}</text>`;
     if (h > tfs * 2.6 && LBL[p.tipo] && p.tipo !== 'nicho') s += `<text x="${f(cx)}" y="${f(cy + tfs * 0.95)}" font-family="${FONT}" font-size="${f(tfs * 0.8)}" fill="#5d4a36" text-anchor="middle">${n1(w - 0.6)}×${n1(h - 0.6)}</text>`;
@@ -86,16 +87,16 @@ function elevationSVG(spec, scale) {
   for (let i = 0; i + 1 < chainX.length; i++) if (chainX[i + 1] - chainX[i] > 3) s += dimLine(chainX[i], bot, chainX[i + 1], bot, n1(chainX[i + 1] - chainX[i]), { ...col, color: '#5d4a36' });
   const right = W + fs * 3;
   s += dimLine(right, Y(H), right, Y(0), `${n1(H)}`, col);
-  if (elev > 0) s += dimLine(right, Y(0), right, 0, `${n1(elev)} do piso`, { ...col, color: '#3a6b8a' });
+  if (elev > 0) s += dimLine(right, Y(0), right, 0, tr('{n} do piso', { n: n1(elev) }), { ...col, color: '#3a6b8a' });
   const ys = [...new Set(spec.panels.flatMap((p) => [p.y0, p.y1]).map((v) => Math.round(v * 10) / 10))].filter((v) => v > 0.5 && v < H - 0.5).sort((a, b) => a - b);
   const chainY = [0, ...ys, H], left = -fs * 3;
   for (let i = 0; i + 1 < chainY.length; i++) if (chainY[i + 1] - chainY[i] > 2.5) s += dimLine(left, Y(chainY[i + 1]), left, Y(chainY[i]), n1(chainY[i + 1] - chainY[i]), { ...col, color: '#5d4a36' });
   // corte lateral
   const sx = W + gap;
-  s += `<text x="${f(sx + D / 2)}" y="${f(Y(H) - fs * 4.6)}" font-family="${FONT}" font-size="${f(fs)}" font-weight="bold" fill="#2b2118" text-anchor="middle">CORTE LATERAL</text>`;
+  s += `<text x="${f(sx + D / 2)}" y="${f(Y(H) - fs * 4.6)}" font-family="${FONT}" font-size="${f(fs)}" font-weight="bold" fill="#2b2118" text-anchor="middle">${tr('CORTE LATERAL')}</text>`;
   s += `<rect x="${sx}" y="${Y(H)}" width="${D}" height="${H}" fill="#f7efe3" stroke="#2b2118" stroke-width="${sw * 1.4}"/>`;
   s += `<line x1="${sx + D}" y1="${Y(H)}" x2="${sx + D}" y2="${Y(0)}" stroke="#3a6b8a" stroke-width="${sw * 2}"/>`;
-  s += `<text x="${f(sx + D + fs * 0.6)}" y="${f(Y(H / 2))}" font-family="${FONT}" font-size="${f(fs * 0.8)}" fill="#3a6b8a" transform="rotate(90 ${f(sx + D + fs * 0.6)} ${f(Y(H / 2))})" text-anchor="middle">parede</text>`;
+  s += `<text x="${f(sx + D + fs * 0.6)}" y="${f(Y(H / 2))}" font-family="${FONT}" font-size="${f(fs * 0.8)}" fill="#3a6b8a" transform="rotate(90 ${f(sx + D + fs * 0.6)} ${f(Y(H / 2))})" text-anchor="middle">${tr('parede')}</text>`;
   if (isBase) {
     const rod = spec.estrutura.rodape || 10, rec = spec.estrutura.recuoRodape || 5;
     s += `<rect x="${sx}" y="${Y(rod)}" width="${rec}" height="${rod}" fill="#fff" stroke="none"/>`;
@@ -121,17 +122,17 @@ export async function exportMarcenaria(items, { getViewer, onProgress } = {}) {
   const cabs = items.filter((it) => CAB_KINDS.includes(it.kind));
   const order = ['bancada', 'armarioBaixo', 'torreLL', 'suspenso', 'nicho'];
   cabs.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind) || a.y - b.y || a.x - b.x);
-  const clean = (n) => n.replace(/\s*\(cópia\)/g, '');
+  const clean = (n) => tn(n.replace(/\s*\(cópia\)/g, ''));
   const specs = cabs.map((it, i) => { const sp = cabinetSpec(it, items); return { ...sp, nome: clean(sp.nome), num: i + 1 }; });
   const frame = () => { doc.setDrawColor(...ACC); doc.setLineWidth(0.4); doc.rect(4, 4, PW - 8, PH - 8); };
-  const header = (t, sub) => {
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...INK); doc.text(t, 10, 12);
+  const header = (title, sub) => {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...INK); doc.text(title, 10, 12);
     if (sub) { doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...MUTED); doc.text(sub, 10, 17); }
-    doc.setFontSize(7); doc.setTextColor(...MUTED); doc.text(`Projeto de marcenaria · Cozinha & Copa · ${new Date().toLocaleDateString('pt-BR')}`, PW - 10, 12, { align: 'right' });
+    doc.setFontSize(7); doc.setTextColor(...MUTED); doc.text(`${tr('Projeto de marcenaria · Cozinha & Copa')} · ${new Date().toLocaleDateString(locale())}`, PW - 10, 12, { align: 'right' });
   };
 
   // ---------- 1. capa: planta com armários numerados + quadro-resumo
-  header('Projeto dos armários — marcenaria', 'Planta com os armários numerados · medidas em cm · conferir no local antes de produzir');
+  header(tr('Projeto dos armários — marcenaria'), tr('Planta com os armários numerados · medidas em cm · conferir no local antes de produzir'));
   const num = new Map(specs.map((s) => [s.id, s.num]));
   const EX = { x0: -40, y0: -20, x1: 520, y1: 700 };
   const plan = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${EX.x0} ${EX.y0} ${EX.x1 - EX.x0} ${EX.y1 - EX.y0}" width="${EX.x1 - EX.x0}" height="${EX.y1 - EX.y0}">${DEFS}<rect x="${EX.x0}" y="${EX.y0}" width="${EX.x1 - EX.x0}" height="${EX.y1 - EX.y0}" fill="#fff"/>${roomMarkup({ grid: false })}${sortedForDraw(items).map((it) => itemMarkup(it, { number: num.get(it.id) ?? null })).join('')}</svg>`;
@@ -139,81 +140,81 @@ export async function exportMarcenaria(items, { getViewer, onProgress } = {}) {
   await placeSVG(doc, plan, 8, 22, pw, ph);
   let x = 8 + pw + 6, y = 26;
   const lw = PW - x - 8;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...INK); doc.text('Quadro de armários', x, y); y += 5;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...INK); doc.text(tr('Quadro de armários'), x, y); y += 5;
   const cols = [0, 7, 66, 96, 112];
   doc.setFontSize(6.6); doc.setTextColor(...MUTED);
-  ['Nº', 'Armário · parede', 'L × A × P', 'h instal.', 'Frentes'].forEach((t, i) => doc.text(t, x + cols[i], y));
+  ['Nº', 'Armário · parede', 'L × A × P', 'h instal.', 'Frentes'].forEach((c, i) => doc.text(tr(c), x + cols[i], y));
   y += 1.5; doc.setDrawColor(...MUTED); doc.setLineWidth(0.2); doc.line(x, y, x + lw, y); y += 3.4;
   for (const s of specs) {
     doc.setFont('helvetica', 'bold'); doc.setTextColor(...INK); doc.text(String(s.num), x + cols[0], y);
     doc.setFont('helvetica', 'normal'); doc.text(doc.splitTextToSize(s.nome, 57)[0], x + cols[1], y);
     doc.text(`${n1(s.L)} × ${n1(s.A)} × ${n1(s.P)}`, x + cols[2], y);
-    doc.text(s.elev ? n1(s.elev) : 'piso', x + cols[3], y);
+    doc.text(s.elev ? n1(s.elev) : tr('piso'), x + cols[3], y);
     doc.text([s.portas && `${s.portas}P`, s.gavetas && `${s.gavetas}G`, s.nichos && `${s.nichos}N`].filter(Boolean).join(' ') || '—', x + cols[4], y);
     doc.setTextColor(...MUTED); doc.setFontSize(5.8); doc.text(doc.splitTextToSize(`${s.parede}${s.posicao ? ' · ' + s.posicao : ''}`, 88)[0], x + cols[1], y + 2.6); doc.setFontSize(6.6);
     y += 6.4;
   }
   y += 2; doc.line(x, y, x + lw, y); y += 4.5;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...INK); doc.text('Especificações gerais', x, y); y += 4;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...INK); doc.text(tr('Especificações gerais'), x, y); y += 4;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8); doc.setTextColor(...MUTED);
   const gerais = [
-    'Caixas e frentes em MDF 18 mm (ou madeira maciça) com acabamento amadeirado rústico — madeira serrada clara com nós aparentes (ver foto de referência).',
-    'Puxadores tipo flor/roseta em ferro preto envelhecido (1 por frente; posição indicada nas vistas).',
-    'Dobradiças com amortecimento; corrediças telescópicas para gavetas; gavetas finas para talheres/temperos.',
-    'Rodapé recuado (5 cm) em MDF escuro. Fundo dos nichos em madeira escura.',
-    'Tampos das bancadas em granilite avermelhado 3 cm — fornecidos pelo marmorista (ver folha de tampos).',
-    'P = porta · G = gaveta · N = nicho aberto. Vistas frontais desenhadas como vistas de quem está de frente para o armário.',
+    tr('Caixas e frentes em MDF 18 mm (ou madeira maciça) com acabamento amadeirado rústico — madeira serrada clara com nós aparentes (ver foto de referência).'),
+    tr('Puxadores tipo flor/roseta em ferro preto envelhecido (1 por frente; posição indicada nas vistas).'),
+    tr('Dobradiças com amortecimento; corrediças telescópicas para gavetas; gavetas finas para talheres/temperos.'),
+    tr('Rodapé recuado (5 cm) em MDF escuro. Fundo dos nichos em madeira escura.'),
+    tr('Tampos das bancadas em granilite avermelhado 3 cm — fornecidos pelo marmorista (ver folha de tampos).'),
+    tr('P = porta · G = gaveta · N = nicho aberto. Vistas frontais desenhadas como vistas de quem está de frente para o armário.'),
   ];
-  for (const t of gerais) { const l = doc.splitTextToSize('• ' + t, lw); doc.text(l, x, y); y += l.length * 2.9 + 0.6; }
+  for (const g of gerais) { const l = doc.splitTextToSize('• ' + g, lw); doc.text(l, x, y); y += l.length * 2.9 + 0.6; }
   try {
     const ref = await fetch('assets/ref/armario_referencia.jpg').then((r) => (r.ok ? r.blob() : null)).catch(() => null) || await fetch('assets/tex/madeira_armario_v.jpg').then((r) => r.blob());
     const url = await new Promise((res) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(ref); });
     const ih = Math.min(PH - 10 - y - 2, 34);
-    if (ih > 15) { doc.addImage(url, 'JPEG', x, y + 1, ih * 16 / 9, ih); doc.setFontSize(6); doc.text('Referência de acabamento', x, y + ih + 3.5); }
+    if (ih > 15) { doc.addImage(url, 'JPEG', x, y + 1, ih * 16 / 9, ih); doc.setFontSize(6); doc.text(tr('Referência de acabamento'), x, y + ih + 3.5); }
   } catch { /* sem imagem de referência */ }
   frame();
 
   // ---------- 2. uma folha por armário
   for (const s of specs) {
-    onProgress?.(`Armário ${s.num}`);
+    onProgress?.(tr('Armário {n}', { n: s.num }));
     doc.addPage('a4', 'landscape');
-    header(`${s.num} — ${s.nome}`, `${s.parede}${s.posicao ? ' · ' + s.posicao : ''} · ${s.elev ? `instalado a ${n1(s.elev)} cm do piso` : 'apoiado no piso'}`);
+    header(`${s.num} — ${s.nome}`, `${s.parede}${s.posicao ? ' · ' + s.posicao : ''} · ${s.elev ? tr('instalado a {n} cm do piso', { n: n1(s.elev) }) : tr('apoiado no piso')}`);
     const areaW = 190, areaH = 165;
     let scale = 10, drawing;
     for (const sc of [10, 15, 20, 25, 30]) { scale = sc; drawing = elevationSVG(s, sc); if (drawing.box.w * 10 / sc <= areaW && drawing.box.h * 10 / sc <= areaH) break; }
     const mmW = drawing.box.w * 10 / scale, mmH = drawing.box.h * 10 / scale;
     await placeSVG(doc, svgWrap(drawing.markup, drawing.box), 10, 24, mmW, mmH);
-    doc.setFontSize(7); doc.setTextColor(...MUTED); doc.text(`Vista frontal e corte lateral · escala 1:${scale} (A4)`, 10, PH - 9);
+    doc.setFontSize(7); doc.setTextColor(...MUTED); doc.text(tr('Vista frontal e corte lateral · escala 1:{s} (A4)', { s: scale }), 10, PH - 9);
     // tabela de especificação
     let tx = 205, ty = 26; const tw = PW - tx - 8;
-    const line = (k, v) => { doc.setFont('helvetica', 'bold'); doc.setTextColor(...INK); doc.text(k, tx, ty); doc.setFont('helvetica', 'normal'); const l = doc.splitTextToSize(String(v), tw - 30); doc.text(l, tx + 30, ty); ty += l.length * 3.3 + 0.8; };
-    doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...INK); doc.text('Especificação', tx, ty); ty += 5; doc.setFontSize(7.2);
-    line('Medida externa', `${n1(s.L)} (L) × ${n1(s.A)} (A) × ${n1(s.P)} (P) cm`);
-    line('Instalação', s.elev ? `suspenso, base a ${n1(s.elev)} cm do piso` : 'piso');
-    if (s.estrutura.rodape) line('Rodapé', `${s.estrutura.rodape} cm, recuado ${s.estrutura.recuoRodape} cm`);
+    const line = (k, v) => { doc.setFont('helvetica', 'bold'); doc.setTextColor(...INK); doc.text(tr(k), tx, ty); doc.setFont('helvetica', 'normal'); const l = doc.splitTextToSize(String(v), tw - 30); doc.text(l, tx + 30, ty); ty += l.length * 3.3 + 0.8; };
+    doc.setFontSize(9.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...INK); doc.text(tr('Especificação'), tx, ty); ty += 5; doc.setFontSize(7.2);
+    line('Medida externa', tr('{l} (L) × {a} (A) × {p} (P) cm', { l: n1(s.L), a: n1(s.A), p: n1(s.P) }));
+    line('Instalação', s.elev ? tr('suspenso, base a {n} cm do piso', { n: n1(s.elev) }) : tr('piso'));
+    if (s.estrutura.rodape) line('Rodapé', tr('{r} cm, recuado {c} cm', { r: s.estrutura.rodape, c: s.estrutura.recuoRodape }));
     if (s.estrutura.tampo) line('Tampo', s.estrutura.tampo);
     if (s.estrutura.fixacao) line('Fixação', s.estrutura.fixacao);
-    line('Frentes', `${s.portas} porta(s) · ${s.gavetas} gaveta(s) · ${s.nichos} nicho(s)`);
-    line('Puxadores', `${s.puxadores} un. (flor, ferro preto)`);
+    line('Frentes', tr('{p} porta(s) · {g} gaveta(s) · {n} nicho(s)', { p: s.portas, g: s.gavetas, n: s.nichos }));
+    line('Puxadores', tr('{n} un. (flor, ferro preto)', { n: s.puxadores }));
     ty += 2; doc.setDrawColor(...MUTED); doc.line(tx, ty, tx + tw, ty); ty += 4;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.text('Frentes (L × A, cm)', tx, ty); ty += 4; doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.text(tr('Frentes (L × A, cm)'), tx, ty); ty += 4; doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
     for (const p of s.panels.filter((p) => p.ref)) {
       const w = Math.abs(p.x1 - p.x0) - 0.6, h = p.y1 - p.y0 - 0.6;
       doc.setTextColor(...INK); doc.text(`${p.ref}`, tx, ty); doc.setTextColor(...MUTED);
-      doc.text(`${p.tipo === 'nicho' ? 'vão aberto' : p.tipo} · ${n1(w)} × ${n1(h)}${p.tipo === 'nicho' ? (p.prateleiras ? ' · 1 prateleira' : '') : ''}`, tx + 8, ty); ty += 3.4;
+      doc.text(`${p.tipo === 'nicho' ? tr('vão aberto') : tr(p.tipo)} · ${n1(w)} × ${n1(h)}${p.tipo === 'nicho' ? (p.prateleiras ? ' · ' + tr('1 prateleira') : '') : ''}`, tx + 8, ty); ty += 3.4;
       if (ty > PH - 40) { doc.text('…', tx, ty); break; }
     }
     if (s.notas.length) {
       ty += 2; doc.setDrawColor(...MUTED); doc.line(tx, ty, tx + tw, ty); ty += 4;
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...INK); doc.text('Observações', tx, ty); ty += 4; doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8); doc.setTextColor(...MUTED);
-      for (const t of s.notas) { const l = doc.splitTextToSize('• ' + t, tw); doc.text(l, tx, ty); ty += l.length * 2.9 + 0.6; }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...INK); doc.text(tr('Observações'), tx, ty); ty += 4; doc.setFont('helvetica', 'normal'); doc.setFontSize(6.8); doc.setTextColor(...MUTED);
+      for (const nt of s.notas) { const l = doc.splitTextToSize('• ' + nt, tw); doc.text(l, tx, ty); ty += l.length * 2.9 + 0.6; }
     }
     frame();
   }
 
   // ---------- 3. lista de corte das frentes
   doc.addPage('a4', 'landscape');
-  header('Lista de frentes (portas, gavetas) e caixas', 'Medidas das frentes já descontadas as folgas de 3 mm de cada lado · conferir no local');
+  header(tr('Lista de frentes (portas, gavetas) e caixas'), tr('Medidas das frentes já descontadas as folgas de 3 mm de cada lado · conferir no local'));
   const agg = new Map();
   for (const s of specs) for (const p of s.panels) {
     if (!['porta', 'gaveta'].includes(p.tipo)) continue;
@@ -222,20 +223,20 @@ export async function exportMarcenaria(items, { getViewer, onProgress } = {}) {
   }
   let ly = 28; const lx = 12;
   doc.setFontSize(7.5); doc.setTextColor(...MUTED);
-  ['Tipo', 'Largura', 'Altura', 'Qtd.', 'Armários (Nº)'].forEach((t, i) => doc.text(t, lx + [0, 30, 55, 80, 95][i], ly));
+  ['Tipo', 'Largura', 'Altura', 'Qtd.', 'Armários (Nº)'].forEach((c, i) => doc.text(tr(c), lx + [0, 30, 55, 80, 95][i], ly));
   ly += 1.5; doc.line(lx, ly, 150, ly); ly += 4; doc.setTextColor(...INK);
   let totP = 0, totG = 0;
   for (const e of [...agg.values()].sort((a, b) => a.tipo.localeCompare(b.tipo) || b.h - a.h || b.w - a.w)) {
-    doc.text(e.tipo, lx, ly); doc.text(n1(e.w), lx + 30, ly); doc.text(n1(e.h), lx + 55, ly); doc.text(String(e.q), lx + 80, ly); doc.text([...e.onde].join(', '), lx + 95, ly);
+    doc.text(tr(e.tipo), lx, ly); doc.text(n1(e.w), lx + 30, ly); doc.text(n1(e.h), lx + 55, ly); doc.text(String(e.q), lx + 80, ly); doc.text([...e.onde].join(', '), lx + 95, ly);
     if (e.tipo === 'porta') totP += e.q; else totG += e.q; ly += 4.2;
   }
   ly += 2; doc.line(lx, ly, 150, ly); ly += 4.5;
-  doc.setFont('helvetica', 'bold'); doc.text(`Total: ${totP} portas · ${totG} gavetas · ${specs.reduce((a, s) => a + s.puxadores, 0)} puxadores · ${specs.reduce((a, s) => a + s.nichos, 0)} vãos de nicho`, lx, ly);
+  doc.setFont('helvetica', 'bold'); doc.text(tr('Total: {p} portas · {g} gavetas · {k} puxadores · {n} vãos de nicho', { p: totP, g: totG, k: specs.reduce((a, s) => a + s.puxadores, 0), n: specs.reduce((a, s) => a + s.nichos, 0) }), lx, ly);
   doc.setFont('helvetica', 'normal');
   // caixas
   let cy = 28; const cx0 = 165;
-  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.text('Caixas (medida externa)', cx0, cy - 4); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...MUTED);
-  ['Nº', 'Armário', 'L × A × P'].forEach((t, i) => doc.text(t, cx0 + [0, 8, 82][i], cy)); cy += 1.5; doc.line(cx0, cy, PW - 12, cy); cy += 4; doc.setTextColor(...INK);
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.text(tr('Caixas (medida externa)'), cx0, cy - 4); doc.setFontSize(7.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(...MUTED);
+  ['Nº', 'Armário', 'L × A × P'].forEach((c, i) => doc.text(tr(c), cx0 + [0, 8, 82][i], cy)); cy += 1.5; doc.line(cx0, cy, PW - 12, cy); cy += 4; doc.setTextColor(...INK);
   for (const s of specs) { doc.text(String(s.num), cx0, cy); doc.text(doc.splitTextToSize(s.nome, 72)[0], cx0 + 8, cy); doc.text(`${n1(s.L)} × ${n1(s.A)} × ${n1(s.P)}`, cx0 + 82, cy); cy += 4.2; }
   frame();
 
@@ -243,15 +244,15 @@ export async function exportMarcenaria(items, { getViewer, onProgress } = {}) {
   const bancadas = cabs.filter((c) => c.kind === 'bancada');
   if (bancadas.length) {
     doc.addPage('a4', 'landscape');
-    header('Tampos em granilite avermelhado (marmorista)', 'Espessura 3 cm · beiral frontal 2 cm · rodabanca 10 cm nas laterais encostadas na parede · medidas em cm');
+    header(tr('Tampos em granilite avermelhado (marmorista)'), tr('Espessura 3 cm · beiral frontal 2 cm · rodabanca 10 cm nas laterais encostadas na parede · medidas em cm'));
     let ty = 28; doc.setFontSize(7.5); doc.setTextColor(...MUTED);
-    ['Nº', 'Bancada', 'Tampo L × P × esp.', 'Recortes / rebaixo', 'Rodabanca'].forEach((t, i) => doc.text(t, 12 + [0, 8, 80, 125, 215][i], ty)); ty += 1.5; doc.line(12, ty, PW - 12, ty); ty += 4.5; doc.setTextColor(...INK);
+    ['Nº', 'Bancada', 'Tampo L × P × esp.', 'Recortes / rebaixo', 'Rodabanca'].forEach((c, i) => doc.text(tr(c), 12 + [0, 8, 80, 125, 215][i], ty)); ty += 1.5; doc.line(12, ty, PW - 12, ty); ty += 4.5; doc.setTextColor(...INK);
     for (const it of bancadas) {
-      const t = topSpec(it, items, wallSides(it));
-      const rec = t.recortes.map((r) => `cuba: recorte ${n1(r.w)} × ${n1(r.d)} a ${n1(r.x)} da borda esq. (vista de cima)${r.rebaixo?.prof ? `; rebaixo ${n1(r.rebaixo.prof)} cm em volta (esq ${r.rebaixo.esq}, dir ${r.rebaixo.dir}, frente ${r.rebaixo.frente}, fundo ${r.rebaixo.fundo})` : ''}`).join(' · ') || '—';
+      const tp = topSpec(it, items, wallSides(it));
+      const rec = tp.recortes.map((r) => tr('cuba: recorte {w} × {d} a {x} da borda esq. (vista de cima)', { w: n1(r.w), d: n1(r.d), x: n1(r.x) }) + (r.rebaixo?.prof ? tr('; rebaixo {p} cm em volta (esq {e}, dir {r}, frente {f}, fundo {u})', { p: n1(r.rebaixo.prof), e: r.rebaixo.esq, r: r.rebaixo.dir, f: r.rebaixo.frente, u: r.rebaixo.fundo }) : '')).join(' · ') || '—';
       const lines = doc.splitTextToSize(rec, 86);
-      doc.text(String(num.get(it.id)), 12, ty); doc.text(doc.splitTextToSize(clean(it.nome), 70)[0], 20, ty); doc.text(`${n1(t.L)} × ${n1(t.P)} × ${t.esp}`, 92, ty); doc.text(lines, 137, ty);
-      doc.text(t.rodabanca.length ? t.rodabanca.join(' + ') : 'sem rodabanca', 227, ty);
+      doc.text(String(num.get(it.id)), 12, ty); doc.text(doc.splitTextToSize(clean(it.nome), 70)[0], 20, ty); doc.text(`${n1(tp.L)} × ${n1(tp.P)} × ${tp.esp}`, 92, ty); doc.text(lines, 137, ty);
+      doc.text(tp.rodabanca.length ? tp.rodabanca.join(' + ') : tr('sem rodabanca'), 227, ty);
       ty += Math.max(1, lines.length) * 3.6 + 2.5;
     }
     frame();
@@ -264,7 +265,7 @@ export async function exportMarcenaria(items, { getViewer, onProgress } = {}) {
     for (const key of ['cozinha', 'lenha']) {
       viewer.setView(key, true); await new Promise((r) => setTimeout(r, 60));
       const url = viewer.snapshot(2400, 1440, 'image/jpeg', 0.9);
-      doc.addPage('a4', 'landscape'); header(`Vista 3D de referência — ${key === 'cozinha' ? 'cozinha' : 'lateral'}`, 'Imagem ilustrativa; prevalecem as medidas das folhas técnicas');
+      doc.addPage('a4', 'landscape'); header(tr('Vista 3D de referência — {v}', { v: key === 'cozinha' ? tr('cozinha') : tr('lateral') }), tr('Imagem ilustrativa; prevalecem as medidas das folhas técnicas'));
       doc.addImage(url, 'JPEG', 10, 22, 277, 166.2); frame();
     }
     viewer.camera.position.copy(cam); viewer.controls.target.copy(tgt);

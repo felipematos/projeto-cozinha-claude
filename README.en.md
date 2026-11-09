@@ -18,7 +18,7 @@ A web app (no build step, three.js via CDN) available in **Portuguese and Englis
 
 The layout is saved in the browser (`localStorage`) and can be exported/imported as JSON.
 
-> The language selector translates the interface, the floor plan and the plan PDF. The cabinet-making PDF for the carpenter is always in Portuguese.
+> The language selector translates the interface, the floor plan and the PDFs (floor plan and cabinet-making plans).
 
 ## Run locally
 
