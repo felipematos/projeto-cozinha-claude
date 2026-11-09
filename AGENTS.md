@@ -112,7 +112,7 @@ Para adicionar um novo tipo de móvel: entrada em `KINDS` (data.js) → símbolo
 - Unidades internas: **centímetros**; three.js usa metros (`cm / 100`).
 - Estado do layout = lista de itens `{id, tipo, nome, x, y, rot, w, d, h, elev, ...}`; `x,y` = centro em planta, `w` ao longo do eixo local X, `d` profundidade (eixo local Y), `rot` em graus (horário, na planta).
 - Itens suspensos (`elev > 0` e montados na parede) aparecem tracejados na planta (convenção de desenho).
-- Layout salvo automaticamente em `localStorage` (`cozinha-layout-v1`); também exporta/importa JSON.
+- Layout salvo automaticamente em `localStorage` (`cozinha-layout-v1`); também exporta/importa JSON. `DEFAULT_ITEMS` (data.js) = layout que aparece na primeira abertura (sem nada salvo); foi atualizado em 2026-11-09 com o layout final do usuário (34 itens). O botão "restaurar proposta" volta a ele.
 - Exportações: PDF da planta em **escala 1:50 (A4 paisagem)**; PNG das vistas 3D.
 - Estilo: madeira de demolição (armários, vigas, triângulo da frente, molduras), granilite avermelhado, parede texturizada bege existente, piso porcelanato bege existente, telhado com caibros escuros aparentes.
 - Geração de imagens / modelos 3D por IA: usar o conector **Muitto** (consome créditos — confirmar com o usuário antes).
