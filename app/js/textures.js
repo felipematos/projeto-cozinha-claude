@@ -95,14 +95,14 @@ export function granilite() {
   });
 }
 
-/** Porcelanato bege (existente). Uma peça de 80 cm por textura. */
+/** Porcelanato bege-acinzentado (existente). Uma peça de 80 cm por textura. */
 export function porcelanato() {
   return canvasTex('porcelanato', 512, (g, W, H) => {
-    const grd = g.createLinearGradient(0, 0, W, H); grd.addColorStop(0, '#cdb9a0'); grd.addColorStop(1, '#c4ae94');
+    const grd = g.createLinearGradient(0, 0, W, H); grd.addColorStop(0, '#c5bdb1'); grd.addColorStop(1, '#bbb2a5');
     g.fillStyle = grd; g.fillRect(0, 0, W, H);
-    for (let i = 0; i < 70; i++) { const r = rr(20, 120); const gr = g.createRadialGradient(rr(0, W), rr(0, H), 0, rr(0, W), rr(0, H), r); g.fillStyle = `rgba(${rnd() < .5 ? '120,95,70' : '235,220,200'},${rr(.03, .1)})`; g.beginPath(); g.arc(rr(0, W), rr(0, H), r, 0, 7); g.fill(); void gr; }
-    for (let i = 0; i < 4000; i++) { g.fillStyle = `rgba(90,70,50,${rr(.02, .08)})`; g.fillRect(rr(0, W), rr(0, H), 1.5, 1.5); }
-    g.strokeStyle = '#9d8a74'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, W - 3, H - 3);
+    for (let i = 0; i < 70; i++) { const r = rr(20, 120); const gr = g.createRadialGradient(rr(0, W), rr(0, H), 0, rr(0, W), rr(0, H), r); g.fillStyle = `rgba(${rnd() < .5 ? '105,98,90' : '232,228,220'},${rr(.03, .1)})`; g.beginPath(); g.arc(rr(0, W), rr(0, H), r, 0, 7); g.fill(); void gr; }
+    for (let i = 0; i < 4000; i++) { g.fillStyle = `rgba(78,72,66,${rr(.02, .08)})`; g.fillRect(rr(0, W), rr(0, H), 1.5, 1.5); }
+    g.strokeStyle = '#968f85'; g.lineWidth = 3; g.strokeRect(1.5, 1.5, W - 3, H - 3);
   });
 }
 

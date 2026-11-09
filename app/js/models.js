@@ -50,7 +50,7 @@ export function makeMaterials(hi) {
   M.parede = mk(hi ? 0xfff4e6 : 0xdccdb6, { map: hi && T.photo('parede_textura', { repeat: [1, 1], mirror: true }), texSize: 0.6, rough: 0.95 });
   M.reboco = mk(0xe9e1d3, { rough: 0.95, lowColor: 0xe3d9c8 });
   M.pilar = mk(0xe2d8c6, { rough: 0.9 });
-  M.piso = mk(hi ? W : 0xd8c7b0, { map: hi && T.porcelanato(), texSize: 0.8, rough: 0.35, envInt: 0.5 });
+  M.piso = mk(hi ? W : 0xcfc8bd, { map: hi && T.porcelanato(), texSize: 0.8, rough: 0.35, envInt: 0.5 });
   M.telhas = mk(hi ? W : 0xb7b7b2, { map: hi && T.telhas(), texSize: 0.9, rough: 0.8, side: THREE.DoubleSide });
   M.grama = mk(hi ? W : 0x7fa05a, { map: hi && T.grama(), texSize: 1.5, rough: 1 });
   M.brita = mk(0x8f8c86, { rough: 1 });
