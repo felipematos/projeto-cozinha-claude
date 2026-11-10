@@ -2,6 +2,7 @@
 // Coordenadas: X = x/100, Z = y/100 (planta), Y = altura. Frente dos móveis = −Z local.
 import * as THREE from 'three';
 import { TessellateModifier } from 'three/addons/modifiers/TessellateModifier.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { ROOM, roofZ, clearSpan, lenhaChimney } from './data.js';
 import { cabinetSpec } from './marcenaria.js';
 import * as T from './textures.js';
@@ -16,7 +17,7 @@ export function makeMaterials(hi) {
     let m;
     if (hi) {
       m = new THREE.MeshStandardMaterial({ color, map: map || null, roughness: rough, metalness: metal, side: side ?? THREE.FrontSide });
-      if (envInt !== undefined) m.envMapIntensity = envInt;
+      void envInt;   // no detalhado o ambiente vem da sonda do próprio cômodo (viewer3d) — intensidade física, igual para todos
     } else {
       m = new THREE.MeshLambertMaterial({ color: opts.lowColor ?? color, side: side ?? THREE.FrontSide });
     }
@@ -26,19 +27,20 @@ export function makeMaterials(hi) {
     return m;
   };
   const W = 0xffffff;
-  // madeira dos armários: textura tirada da foto de referência (madeira serrada, nós e veios marcados)
-  M.madeira = mk(hi ? W : 0xa57b52, { map: hi && T.photo('madeira_armario_h', { mirror: true }), texSize: 0.75, rough: 0.8 });
-  M.madeiraV = mk(hi ? W : 0xa57b52, { map: hi && T.photo('madeira_armario_v', { mirror: true }), texSize: 0.75, rough: 0.8 });
-  M.madeiraEscura = mk(hi ? W : 0x6b4b33, { map: hi && T.woodDemolicao('b'), texSize: 1.2, rough: 0.8 });
-  M.madeiraClara = mk(hi ? W : 0xc49a6c, { map: hi && T.woodDemolicao('c'), texSize: 1.2, rough: 0.75 });
-  M.mesa = mk(hi ? 0xd8b48a : 0xa57c52, { map: hi && T.woodDemolicao('c'), texSize: 1.5, rough: 0.55 });
+  // madeiras e tijolo do detalhado: fotos-textura geradas no Muitto (assets/tex/*_ia*, tabuas_*), preparadas para repetir sem emenda.
+  // armários: madeira serrada com nós e veios marcados, no tom da foto de referência do usuário
+  M.madeira = mk(hi ? W : 0xa57b52, { map: hi && T.photo('madeira_armario_ia_h', { mirror: true }), texSize: 0.75, rough: 0.8 });
+  M.madeiraV = mk(hi ? W : 0xa57b52, { map: hi && T.photo('madeira_armario_ia_v', { mirror: true }), texSize: 0.75, rough: 0.8 });
+  M.madeiraEscura = mk(hi ? W : 0x6b4b33, { map: hi && T.photo('tabuas_escura', { wrap: 'mr' }), texSize: 1.2, rough: 0.8 });
+  M.madeiraClara = mk(hi ? W : 0xc49a6c, { map: hi && T.photo('tabuas_clara', { wrap: 'mr' }), texSize: 1.2, rough: 0.75 });
+  M.mesa = mk(hi ? 0xe6cfb2 : 0xa57c52, { map: hi && T.photo('tabuas_clara', { wrap: 'mr' }), texSize: 1.5, rough: 0.55 });
   // cadeiras: compensado/madeira curvada clara envernizada (como as cadeiras reais da mesa)
   M.cadeira = hi
     ? new THREE.MeshPhysicalMaterial({ color: 0xffffff, map: T.madeiraCurvada(), roughness: 0.52, clearcoat: 0.35, clearcoatRoughness: 0.5, side: THREE.DoubleSide })
     : mk(0xc8a070, { side: THREE.DoubleSide });
   if (hi) M.cadeira.userData.texSize = 0.5;
   M.balanco = mk(hi ? 0x5e3a22 : 0x5a3a22, { rough: 0.38 });
-  M.granilite = mk(hi ? W : 0xb0604c, { map: hi && T.granilite(), texSize: 0.6, rough: 0.35, envInt: 0.6 });
+  M.granilite = mk(hi ? W : 0xb0604c, { texSize: 0.6, rough: 0.35 });
   M.inox = mk(0xc9ccce, { rough: 0.28, metal: 0.9, lowColor: 0xc4c7ca });
   M.inoxEscuro = mk(0x7d8185, { rough: 0.35, metal: 0.85, side: THREE.BackSide, lowColor: 0x8a8d90 });
   M.ferro = mk(hi ? W : 0x2a2522, { map: hi && T.ferro(), texSize: 0.4, rough: 0.6, metal: 0.6, lowColor: 0x2a2522 });
@@ -47,17 +49,18 @@ export function makeMaterials(hi) {
   M.branco = mk(0xf1f1ef, { rough: 0.3, envInt: 0.7 });
   M.vidro = mk(0xcfe3ea, { rough: 0.05, metal: 0.1, transparent: true, opacity: hi ? 0.18 : 0.25, envInt: 1.0 });
   M.vidroPreto = mk(0x15171a, { rough: 0.12, metal: 0.3 });
-  M.parede = mk(hi ? 0xfff4e6 : 0xdccdb6, { map: hi && T.photo('parede_textura', { repeat: [1, 1], mirror: true }), texSize: 0.6, rough: 0.95 });
+  M.parede = mk(hi ? W : 0xdccdb6, { texSize: 0.6, rough: 0.95 });
   M.reboco = mk(0xe9e1d3, { rough: 0.95, lowColor: 0xe3d9c8 });
   M.pilar = mk(0xe2d8c6, { rough: 0.9 });
-  M.piso = mk(hi ? W : 0xc9c6c1, { map: hi && T.porcelanato(), texSize: 0.8, rough: 0.35, envInt: 0.5 });
-  M.telhas = mk(hi ? W : 0xb7b7b2, { map: hi && T.telhas(), texSize: 0.9, rough: 0.8, side: THREE.DoubleSide });
-  M.grama = mk(hi ? W : 0x7fa05a, { map: hi && T.grama(), texSize: 1.5, rough: 1 });
+  M.piso = mk(hi ? W : 0xc9c6c1, { texSize: 0.8, rough: 0.35 });
+  M.telhas = mk(hi ? W : 0xb7b7b2, { texSize: 0.9, rough: 0.8, side: THREE.DoubleSide });
+  M.grama = mk(hi ? W : 0x7fa05a, { texSize: 1.5, rough: 1 });
   M.brita = mk(0x8f8c86, { rough: 1 });
   M.muro = mk(0x8e948b, { rough: 0.95 });
   M.calcada = mk(0xb9b2a6, { rough: 0.95 });
-  M.tijolo = mk(hi ? W : 0xb4603c, { texSize: 0.46, rough: 0.92 });
-  if (hi) { const [c, b] = T.tijoloPar(); M.tijolo.map = c; M.tijolo.bumpMap = b; M.tijolo.bumpScale = 3; }
+  // tijolinho maciço: 24 fiadas por textura (5,75 cm por fiada = 1,38 m), com mapa de relevo próprio (junta rebaixada)
+  M.tijolo = mk(hi ? W : 0xb4603c, { texSize: hi ? 1.38 : 0.46, rough: 0.92 });
+  if (hi) { M.tijolo.map = T.photo('tijolo_ia', { wrap: 'mr' }); M.tijolo.bumpMap = T.photo('tijolo_ia_relevo', { wrap: 'mr', data: true }); M.tijolo.bumpScale = 6; }
   // ferro fundido (portas, chapa) — superfície areada; a chapa é mais lisa/polida pelo uso
   M.ferroFundido = mk(hi ? W : 0x2a2826, { texSize: 0.35, rough: 0.78, metal: 0.45 });
   M.ferroChapa = mk(hi ? 0xbdbdbd : 0x2a2826, { texSize: 0.35, rough: 0.5, metal: 0.6 });
@@ -108,11 +111,78 @@ export function makeMaterials(hi) {
   M.frutas = [0xe8811a, 0xc0281c, 0xe8cf3a, 0x6c9a2e, 0x7a2340].map((c) => mk(c, { rough: 0.45 }));
   M.tecidos = [0, 1, 2, 3].map((i) => mk(hi ? 0xffffff : [0xe9c2bd, 0xc2d2e2, 0xd3dcc0, 0xe8d2b8][i], { map: hi && T.tecido(i), rough: 0.95, side: THREE.DoubleSide }));
   if (hi) {
-    for (const [m, k] of [[M.madeira, 0.6], [M.madeiraV, 0.6], [M.madeiraEscura, 0.8], [M.madeiraClara, 0.8], [M.mesa, 0.5], [M.parede, 2.2]]) { m.bumpMap = m.map; m.bumpScale = k; }
+    for (const [m, k] of [[M.madeira, 0.9], [M.madeiraV, 0.9], [M.madeiraEscura, 1.0], [M.madeiraClara, 1.0], [M.mesa, 0.5]]) { m.bumpMap = m.map; m.bumpScale = k; }
+    applyPBR(M);
   }
+  M.vidroFachada ||= M.vidro; M.casaInterior ||= M.reboco;
   M.linha = new THREE.LineBasicMaterial({ color: 0x3a2e24, transparent: true, opacity: 0.55 });
   M.sel = new THREE.LineBasicMaterial({ color: 0xd2552b, depthTest: false, transparent: true });
   return M;
+}
+
+/**
+ * Realismo do 3D detalhado: relevo (normal) e variação de brilho (rugosidade) em todas as superfícies,
+ * para nada ficar perfeitamente liso/uniforme. Os conjuntos "neutros" (pintura, fosco, esmalte, escovado)
+ * são quase brancos e multiplicam a cor do material; `base` é a rugosidade média do mapa.
+ */
+function applyPBR(M) {
+  const set = (m, s, { ts, n = 1, map = true, base, rough } = {}) => {
+    if (map) m.map = s.map;
+    m.normalMap = s.normalMap; m.normalScale.set(n, n);
+    m.roughnessMap = s.roughnessMap;
+    m.roughness = rough ?? (base ? Math.min(1.6, m.roughness / base) : 1);
+    if (ts) m.userData.texSize = ts;
+  };
+  const W = 0xffffff;
+  set(M.piso, T.porcelanatoPBR(), { ts: 1.6 });
+  set(M.parede, T.paredeRusticaPBR(), { ts: 2.4, n: 1.15 });
+  const pint = T.pinturaPBR(), fosco = T.foscoPBR(), esm = T.esmaltePBR(), esc = T.escovadoPBR();
+  for (const m of [M.reboco, M.pilar, M.muro]) set(m, pint, { ts: 1.5, base: 0.86 });
+  M.calcada.color.set(W); set(M.calcada, T.concretoPBR(), { ts: 1.5 });
+  set(M.granilite, T.granilitePBR(), { ts: 0.6 });
+  for (const m of [M.inox, M.inoxEscuro, M.inoxEscovado, M.aluminio]) set(m, esc, { ts: 0.3, base: 0.34, n: 0.3 });
+  for (const m of [M.branco, M.esmalte, M.plasticoPreto, M.ceramica]) set(m, esm, { ts: 0.4, base: 0.3 });
+  for (const m of [M.plasticoFosco, M.barro, M.pedraEscura, M.escuro, M.buffet, M.balanco, M.ferroPreto, M.ferroVelho, M.metalVelho, M.latao, M.lenha, M.cabo, M.antiaderente])
+    set(m, fosco, { ts: 0.3, base: 0.8, n: 0.8 });
+  M.grama.color.set(W); set(M.grama, T.gramaPBR(), { ts: 2 });
+  M.brita.color.set(W); set(M.brita, T.britaPBR(), { ts: 1 });
+  set(M.telhas, T.telhasPBR(), { ts: 0.9 });
+  const az = T.azulejosRelevoPBR(); set(M.azulejo, az, { map: false });
+  // madeiras: frestas e veios escuros mais ásperos, partes claras/gastas com mais brilho
+  for (const [m, lo, hi] of [[M.madeira, 0.55, 0.95], [M.madeiraV, 0.55, 0.95], [M.madeiraEscura, 0.6, 1], [M.madeiraClara, 0.6, 1], [M.mesa, 0.3, 0.62], [M.cadeira, 0.38, 0.62], [M.buffetFrente, 0.42, 0.75]]) {
+    m.roughnessMap = T.roughFrom(m.map, lo, hi); m.roughness = 1;
+  }
+  // tijolo: junta de argamassa fosca; ferro fundido com brilho irregular
+  M.tijolo.roughnessMap = T.roughFrom(M.tijolo.map, 0.8, 1); M.tijolo.roughness = 1;
+  // vidros (persiana, janelões, tampos): reflexo com Fresnel que não some com a transparência
+  // M.vidro = vidros dentro do cômodo (tampos, potes): refletem a sonda; M.vidroFachada = persiana, janelões, porta: refletem o céu
+  M.vidro = glassMaterial(); M.vidroFachada = glassMaterial();
+  // interior da casa visto pela janela/porta do fundo: cômodo fechado, só com um pouco de luz ambiente
+  M.casaInterior = new THREE.MeshStandardMaterial({ color: 0xe2dacb, roughness: 0.95, side: THREE.DoubleSide, envMapIntensity: 0.1 });
+  // materiais que só aparecem do lado de fora refletem o céu, não a sonda interna
+  // árvore do quintal: casca (cópia do material da lenha) e raminhos de folhas recortados por alphaTest (as sombras também)
+  M.tronco = M.casca.clone();
+  M.folhagem = new THREE.MeshStandardMaterial({ map: T.folhagem(), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.7 });
+  M.externos = [M.grama, M.brita, M.muro, M.calcada, M.reboco, M.vidroFachada, M.tronco, M.folhagem];
+}
+
+/** Todos os materiais de M (inclusive os que estão em listas). */
+export function allMaterials(M) { return Object.values(M).flat().filter((m) => m && m.isMaterial); }
+
+/** Vidro: a parte difusa é quase transparente, mas o reflexo especular (céu, sol, luminárias) entra inteiro. */
+function glassMaterial() {
+  const m = new THREE.MeshPhysicalMaterial({ color: 0xd4e6e2, roughness: 0.02, metalness: 0, ior: 1.52, transparent: true, opacity: 0.07, depthWrite: false });
+  m.blending = THREE.CustomBlending; m.blendSrc = THREE.OneFactor; m.blendDst = THREE.OneMinusSrcAlphaFactor;
+  m.fog = false;
+  m.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace('#include <opaque_fragment>', `
+      float gA = diffuseColor.a;
+      float gS = clamp( max( totalSpecular.r, max( totalSpecular.g, totalSpecular.b ) ), 0.0, 1.0 );
+      gl_FragColor = vec4( totalDiffuse * gA + totalSpecular, clamp( gA + gS * 0.6, 0.0, 1.0 ) );
+    `);
+  };
+  m.userData.texSize = 1;
+  return m;
 }
 
 // ---------------------------------------------------------------- helpers
@@ -131,7 +201,7 @@ function scaleUV(geo, s) { const uv = geo.attributes.uv; for (let i = 0; i < uv.
 function box(w, h, d, mat, x = 0, y = 0, z = 0, parent) {
   const g = new THREE.BoxGeometry(w, h, d);
   const mats = Array.isArray(mat) ? mat : [mat];
-  if (mats.some((m) => m.map && !m.userData.noWorldUV)) boxUV(g, w, h, d, mats[0].userData.texSize || 1);
+  if (mats.some((m) => (m.map || m.normalMap) && !m.userData.noWorldUV)) boxUV(g, w, h, d, mats[0].userData.texSize || 1);
   const m = new THREE.Mesh(g, mat);
   m.position.set(x, y, z);
   m.castShadow = m.receiveShadow = true;
@@ -141,6 +211,11 @@ function box(w, h, d, mat, x = 0, y = 0, z = 0, parent) {
 /** Caixa com uma face "foto" (frente = −Z, índice 5) sem UV de mundo. */
 function photoBox(w, h, d, side, front, x, y, z, parent) {
   const g = new THREE.BoxGeometry(w, h, d);
+  if (side.normalMap) {   // laterais em escala de mundo; a face da foto mantém UV 0–1
+    const uv = g.attributes.uv, keep = Array.from({ length: 8 }, (_, i) => uv.array[40 + i]);
+    boxUV(g, w, h, d, side.userData.texSize || 1);
+    keep.forEach((v, i) => { uv.array[40 + i] = v; });
+  }
   const m = new THREE.Mesh(g, [side, side, side, side, side, front]);
   m.position.set(x, y, z); m.castShadow = m.receiveShadow = true; parent?.add(m); return m;
 }
@@ -1308,12 +1383,12 @@ export function buildRoom(M, hi) {
   box(0.06, dh, 0.22, M.madeiraEscura, dx1 - 0.03, dh / 2, D + 0.1, S);
   box(dx1 - dx0, 0.06, 0.22, M.madeiraEscura, (dx0 + dx1) / 2, dh - 0.03, D + 0.1, S);
   box(dx1 - dx0 - 0.12, dh - 0.06, 0.04, M.madeiraEscura, (dx0 + dx1) / 2, (dh - 0.06) / 2, D + 0.15, S);
-  box(dx1 - dx0 - 0.3, dh - 0.5, 0.045, M.vidro, (dx0 + dx1) / 2, dh / 2 + 0.05, D + 0.15, S);
+  box(dx1 - dx0 - 0.3, dh - 0.5, 0.045, M.vidro, (dx0 + dx1) / 2, dh / 2 + 0.05, D + 0.15, S).castShadow = false;
   // janela existente (moldura escura)
   const wx0 = cm(wn.x0), wx1 = cm(wn.x1), wy0 = cm(wn.sill), wy1 = cm(wn.top);
   for (const x of [wx0 + 0.04, wx1 - 0.04]) box(0.08, wy1 - wy0, 0.24, M.madeiraEscura, x, (wy0 + wy1) / 2, D + 0.1, S);
   for (const y of [wy0 + 0.03, wy1 - 0.04]) box(wx1 - wx0, y === wy0 + 0.03 ? 0.06 : 0.08, 0.26, M.madeiraEscura, (wx0 + wx1) / 2, y, D + 0.1, S);
-  box(wx1 - wx0 - 0.1, wy1 - wy0 - 0.1, 0.01, M.vidro, (wx0 + wx1) / 2, (wy0 + wy1) / 2, D + 0.12, S);
+  box(wx1 - wx0 - 0.1, wy1 - wy0 - 0.1, 0.01, M.vidro, (wx0 + wx1) / 2, (wy0 + wy1) / 2, D + 0.12, S).castShadow = false;
   box(0.03, wy1 - wy0 - 0.1, 0.04, M.madeiraEscura, (wx0 + wx1) / 2, (wy0 + wy1) / 2, D + 0.12, S);
 
   // azulejos antigos na parede da pia (contornando a janela), alinhados a partir do canto inferior esquerdo
@@ -1374,8 +1449,7 @@ export function buildRoom(M, hi) {
   buildExterior(EX, M, hi);
 
   // luminárias rústicas
-  const pend = [[248, 120], [248, 220], [230, 470]];
-  for (const [px, py] of pend) groups.luzes.add(pendente(M, cm(px), cm(roofZ(px)), cm(py), hi));
+  for (const [px, py] of R.pendentes) groups.luzes.add(pendente(M, cm(px), cm(roofZ(px)), cm(py), hi));
   return { root, groups };
 }
 
@@ -1387,7 +1461,7 @@ function janelao(parent, M, xc, y0, y1, z0, z1, xw) {
   box(0.08, fr, z1 - z0, M.madeiraEscura, xc, y1 - fr / 2, (z0 + z1) / 2, parent);
   for (let i = 0; i <= n; i++) box(0.08, y1 - y0, fr, M.madeiraEscura, xc, (y0 + y1) / 2, z0 + i * pw, parent);
   for (let i = 0; i < n; i++) {
-    const g = box(0.012, y1 - y0 - 2 * fr, pw - fr, M.vidro, xc + (i % 2 ? 0.02 : -0.02), (y0 + y1) / 2, z0 + (i + 0.5) * pw, parent);
+    const g = box(0.012, y1 - y0 - 2 * fr, pw - fr, M.vidroFachada, xc + (i % 2 ? 0.02 : -0.02), (y0 + y1) / 2, z0 + (i + 0.5) * pw, parent);
     g.castShadow = false;
     box(0.04, 0.03, pw - fr, M.madeiraEscura, xc, y0 + (y1 - y0) * 0.62, z0 + (i + 0.5) * pw, parent);
   }
@@ -1405,7 +1479,7 @@ function persiana(parent, M, axis, c, a0, a1, h) {
     const [w, hh, d] = dims(pw - 0.01, h - 0.1, 0.01);
     const [x, , z] = along(a0 + (i + 0.5) * pw);
     const off = i % 2 ? 0.015 : -0.015;
-    const g = box(w, hh, d, M.vidro, x + (axis === 'z' ? off : 0), h / 2, z + (axis === 'x' ? off : 0), parent); g.castShadow = false;
+    const g = box(w, hh, d, M.vidroFachada, x + (axis === 'z' ? off : 0), h / 2, z + (axis === 'x' ? off : 0), parent); g.castShadow = false;
     const [vw, vh, vd] = dims(0.02, h - 0.1, 0.02);
     box(vw, vh, vd, M.ferroPreto, x + (axis === 'x' ? pw / 2 - 0.01 : 0), h / 2, z + (axis === 'z' ? pw / 2 - 0.01 : 0), parent);
   }
@@ -1450,6 +1524,65 @@ function buildRoof(RF, M, hi) {
   og.rotation.z = ang; og.position.set(-0.2 - 2.4, cm(R.roofHigh) + 0.22 - 2.4 * Math.tan(ang), (z0 + z1) / 2); RF.add(og);
 }
 
+/**
+ * Árvore do quintal: tronco e galhos em tubos afunilados (ramificação recursiva, fundidos numa malha só) e copa feita de
+ * milhares de raminhos de folhas instanciados. Semente fixa → a árvore (e a sombra dela) é sempre a mesma.
+ */
+function arvore(M, hi, cfg) {
+  const g = new THREE.Group(), H = cm(cfg.h ?? 480), k = H / 4.8;
+  g.position.set(cm(cfg.x), -0.15, cm(cfg.y));
+  if (!hi) {
+    cyl(0.1 * k, 0.14 * k, H * 0.45, M.madeiraEscura, 0, H * 0.225, 0, g, 8);
+    const c = new THREE.Mesh(new THREE.IcosahedronGeometry(H * 0.36, 1), M.folha); c.position.y = H * 0.68; g.add(c);
+    return g;
+  }
+  let s = 20261110;
+  const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647, rr = (a, b) => a + (b - a) * rnd();
+  const V = THREE.Vector3, up = new V(0, 1, 0), MAX = 4, leaves = [], tubes = [];
+  const grow = (p0, dir, len, r, depth) => {
+    const side = new V(rr(-1, 1), rr(-0.2, 0.5), rr(-1, 1)).normalize();
+    const mid = p0.clone().addScaledVector(dir, len * 0.5).addScaledVector(side, len * 0.09);
+    const p1 = p0.clone().addScaledVector(dir, len).addScaledVector(side, -len * 0.05);
+    const curve = new THREE.CatmullRomCurve3([p0, mid, p1]);
+    const seg = depth < 2 ? 8 : 5, rad = depth < 2 ? 10 : 6, r1 = r * 0.68;
+    const geo = new THREE.TubeGeometry(curve, seg, r, rad, false), pos = geo.attributes.position, uv = geo.attributes.uv, c = new V(), v = new V();
+    for (let i = 0; i <= seg; i++) {
+      curve.getPointAt(i / seg, c);
+      const f = 1 + (r1 / r - 1) * (i / seg) + (depth === 0 ? 0.55 * Math.pow(1 - i / seg, 4) : 0);   // afunila; o tronco alarga na base
+      for (let j = 0; j <= rad; j++) {
+        const n = i * (rad + 1) + j;
+        v.fromBufferAttribute(pos, n).sub(c).multiplyScalar(f).add(c); pos.setXYZ(n, v.x, v.y, v.z);
+        uv.setXY(n, (j / rad) * (depth < 2 ? 2 : 1), ((i / seg) * len) / 0.6);                          // fendas da casca ao longo do galho
+      }
+    }
+    tubes.push(geo);
+    if (depth >= 2) for (let q = 0, n = depth === 2 ? 5 : depth === 3 ? 9 : 12; q < n; q++) {
+      curve.getPoint(rr(0.25, 1), c); leaves.push(c.clone().add(new V(rr(-1, 1), rr(-0.6, 1), rr(-1, 1)).multiplyScalar(rr(0.05, 0.3) * k)));
+    }
+    if (depth === MAX) { for (let q = 0; q < 26; q++) leaves.push(p1.clone().add(new V(rr(-1, 1), rr(-0.7, 1), rr(-1, 1)).multiplyScalar(rr(0.05, 0.55) * k))); return; }
+    const n = depth === 0 ? 4 : rnd() < 0.55 ? 2 : 3, a0 = rr(0, 6.28);
+    const t1 = new V().crossVectors(dir, Math.abs(dir.y) > 0.9 ? new V(1, 0, 0) : up).normalize(), t2 = new V().crossVectors(dir, t1);
+    for (let q = 0; q < n; q++) {
+      const az = a0 + (q / n) * Math.PI * 2 + rr(-0.4, 0.4), sp = depth === 0 ? rr(0.5, 0.85) : rr(0.4, 0.8);
+      const nd = dir.clone().multiplyScalar(Math.cos(sp)).addScaledVector(t1, Math.sin(sp) * Math.cos(az)).addScaledVector(t2, Math.sin(sp) * Math.sin(az));
+      nd.y += 0.22; nd.normalize();
+      grow(p1.clone(), nd, len * rr(0.66, 0.82) * (depth === 0 ? 0.85 : 1), r1 * (n === 2 ? 0.85 : 0.75), depth + 1);
+    }
+  };
+  grow(new V(0, 0, 0), new V(0.03, 1, -0.02).normalize(), 1.55 * k, 0.13 * k, 0);
+  const wood = new THREE.Mesh(mergeGeometries(tubes), M.tronco); wood.castShadow = wood.receiveShadow = true; g.add(wood);
+  const lg = new THREE.PlaneGeometry(0.5 * k, 0.5 * k); lg.translate(0, 0.2 * k, 0);
+  const im = new THREE.InstancedMesh(lg, M.folhagem, leaves.length), o = new THREE.Object3D(), col = new THREE.Color();
+  leaves.forEach((p, i) => {
+    o.position.copy(p); o.rotation.set(rr(-1.2, 1.2), rr(0, 6.28), rr(-1.2, 1.2)); o.scale.setScalar(rr(0.75, 1.25)); o.updateMatrix();
+    im.setMatrixAt(i, o.matrix); im.setColorAt(i, col.setRGB(rr(0.72, 1.08), rr(0.8, 1.1), rr(0.6, 0.95)));
+  });
+  im.castShadow = im.receiveShadow = true; im.frustumCulled = false; im.raycast = () => {};
+  im.userData.noAO = true;        // cartões recortados não entram na oclusão de ambiente (viraria um halo escuro)
+  g.add(im);
+  return g;
+}
+
 function buildExterior(EX, M, hi) {
   const R = ROOM, L = R.lot;
   const sx = cm(L.sideWallX), rz = cm(L.rearWallY), wh = cm(L.wallH);
@@ -1458,6 +1591,7 @@ function buildExterior(EX, M, hi) {
   ground.rotation.x = -Math.PI / 2; ground.position.set(sx - gw / 2, -0.15, rz / 2); ground.receiveShadow = true;
   scaleUVPlane(ground.geometry, gw, -rz, M.grama.userData.texSize); EX.add(ground);
   const side = new THREE.Mesh(new THREE.PlaneGeometry(sx - cm(R.W), gd), M.brita);
+  scaleUVPlane(side.geometry, sx - cm(R.W), gd, M.brita.userData.texSize || 1);
   side.rotation.x = -Math.PI / 2; side.position.set((sx + cm(R.W)) / 2, -0.149, (rz + cm(R.D)) / 2 + (cm(R.D) - rz) / 2 - gd / 2 + 0.1); side.receiveShadow = true; EX.add(side);
   box(0.13, wh, gd, M.muro, sx + 0.065, wh / 2 - 0.15, rz + gd / 2, EX);
   box(gw, wh, 0.13, M.muro, sx - gw / 2 + 0.13, wh / 2 - 0.15, rz - 0.065, EX);
@@ -1466,6 +1600,14 @@ function buildExterior(EX, M, hi) {
   house.receiveShadow = true;
   box(2.2, 1.3, 0.02, M.vidroPreto, -0.4 - 2.0, 1.55, -0.011, EX);
   box(2.3, 0.06, 0.06, M.madeiraEscura, -0.4 - 2.0, 0.9, -0.03, EX);
+  if (L.arvore) EX.add(arvore(M, hi, L.arvore));
+  // cômodo da casa atrás da parede do fundo (antiga cozinha): fecha o céu que apareceria pela janela e pela porta
+  const cw = cm(R.W) + 0.2, cd = 4, ch = cm(R.wallH);
+  const casa = new THREE.Mesh(new THREE.BoxGeometry(cw, ch, cd), M.casaInterior);
+  casa.position.set(cw / 2 - 0.2, ch / 2, cm(R.D) + 0.2 + cd / 2 + 0.005); casa.castShadow = true; casa.receiveShadow = true; EX.add(casa);
+  const pisoCasa = new THREE.Mesh(new THREE.PlaneGeometry(cw, cd), M.piso);
+  scaleUVPlane(pisoCasa.geometry, cw, cd, M.piso.userData.texSize || 1);
+  pisoCasa.rotation.x = -Math.PI / 2; pisoCasa.position.set(cw / 2 - 0.2, 0.002, cm(R.D) + 0.2 + cd / 2); EX.add(pisoCasa);
   void hi;
 }
 

@@ -35,7 +35,11 @@ export const ROOM = {
     { x0: 428, x1: 458, y0: 201, y1: 231 },
     { x0: 428, x1: 458, y0: 422, y1: 452 },
   ],
-  lot: { sideWallX: 600, rearWallY: -470, wallH: 200 },
+  // luminárias pendentes existentes no teto (x, y): sobre a borda externa da pia e sobre a mesa de jantar
+  pendentes: [[220, 591], [222, 205]],
+  // terreno: muro lateral e muro da frente; árvore do quintal no gramado (x, y do tronco; h = altura total aproximada).
+  // a faixa de x 460–600 é brita
+  lot: { sideWallX: 600, rearWallY: -470, wallH: 200, arvore: { x: -20, y: -270, h: 480 } },
 };
 
 /** Trecho livre de um segmento do lado direito, descontando os pilares nas extremidades. */

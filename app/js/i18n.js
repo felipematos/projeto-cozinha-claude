@@ -206,8 +206,8 @@ const EN = {
 const EN_HTML = {
   hintPlan: 'Drag to move · orange handle rotates · <kbd>R</kbd> 90° · <kbd>Q</kbd>/<kbd>E</kbd> 15° · arrows nudge 1 cm (⇧ 10) · <kbd>Alt</kbd> no snap',
   hintMeasure: '<b>Measure:</b> click and drag between two points · snaps to corners and edges (<kbd>Alt</kbd> turns it off) · <kbd>⇧</kbd> locks the axis · <kbd>⌫</kbd> deletes the last one · <kbd>Esc</kbd> exits',
-  hintNav: 'Keyboard: <kbd>↑</kbd><kbd>↓</kbd> move · <kbd>←</kbd><kbd>→</kbd> turn · <kbd>W</kbd>/<kbd>S</kbd> up/down · <kbd>A</kbd>/<kbd>D</kbd> sideways · <kbd>Z</kbd> zoom in · <kbd>⇧Z</kbd> zoom out · <kbd>⇧</kbd> faster',
-  hintWalk: 'Walk mode: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows · drag to look around · <kbd>⇧</kbd> runs · <kbd>Esc</kbd> exits',
+  hintNav: 'Keyboard: <kbd>↑</kbd><kbd>↓</kbd> move · <kbd>←</kbd><kbd>→</kbd> turn · <kbd>⇧</kbd>+arrows camera direction · <kbd>W</kbd>/<kbd>S</kbd> up/down · <kbd>A</kbd>/<kbd>D</kbd> sideways · <kbd>Z</kbd> zoom in · <kbd>⇧Z</kbd> zoom out',
+  hintWalk: 'Walk mode: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrows · drag or <kbd>⇧</kbd>+arrows to look around · <kbd>⇧</kbd> runs · <kbd>Esc</kbd> exits',
 };
 
 let lang = 'pt';

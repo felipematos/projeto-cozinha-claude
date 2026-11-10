@@ -1,16 +1,50 @@
 // Visualizador 3D (baixa fidelidade ou detalhado), sincronizado com o estado da planta.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { makeMaterials, buildRoom, buildItem } from './models.js';
-import { setAnisotropy } from './textures.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { Sky } from 'three/addons/objects/Sky.js';
+import { makeMaterials, buildRoom, buildItem, allMaterials } from './models.js';
+import { setAnisotropy, whenTexturesLoaded, nuvens } from './textures.js';
 import { ROOM } from './data.js';
 
 const cm = (v) => v / 100;
+
+// ---- ajustes de "fotografia" do 3D detalhado ----
+const LOOK = {
+  exposure: 1.0,        // exposição do tone mapping
+  ambient: 1.55,        // reforço da luz ambiente dentro do cômodo (como um HDR leve: interior e quintal na mesma foto)
+  skyGain: 0.45,        // brilho do céu (fundo + luz ambiente)
+  sun: 3.4,             // intensidade do sol direto
+  // de onde vem o sol (cm: x, y da planta, altura), relativo ao centro do cômodo. Vem da frente-esquerda, a ~32° de altura,
+  // passando pela árvore do quintal (ROOM.lot.arvore): a sombra da copa cai sobre a persiana de vidro da frente e entra no piso.
+  sunPos: [-670, -770, 630],
+  bloom: 0.1,           // halo suave nas áreas estouradas (céu pelas janelas, lâmpadas)
+  grain: 0.022,         // grão de filme
+  vignette: 0.16,       // escurecimento dos cantos
+};
+
+/** Passe final: vinheta e grão — tira o aspecto "limpo demais" de imagem gerada por computador. */
+const FilmShader = {
+  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uGrain: { value: LOOK.grain }, uVig: { value: LOOK.vignette } },
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 ); }',
+  fragmentShader: `
+    uniform sampler2D tDiffuse; uniform float uTime, uGrain, uVig; varying vec2 vUv;
+    float hash( vec2 p ) { vec3 p3 = fract( vec3( p.xyx ) * .1031 ); p3 += dot( p3, p3.yzx + 33.33 ); return fract( ( p3.x + p3.y ) * p3.z ); }
+    void main() {
+      vec4 c = texture2D( tDiffuse, vUv );
+      float d = length( ( vUv - 0.5 ) * vec2( 1.0, 0.86 ) );
+      c.rgb *= mix( 1.0 - uVig, 1.0, smoothstep( 0.78, 0.28, d ) );
+      float l = dot( c.rgb, vec3( 0.299, 0.587, 0.114 ) );
+      float n = hash( gl_FragCoord.xy + fract( uTime ) * 97.0 ) + hash( gl_FragCoord.yx * 1.7 + fract( uTime * 1.3 ) * 41.0 ) - 1.0;
+      c.rgb += n * uGrain * ( 1.0 - 0.6 * l );
+      gl_FragColor = c;
+    }`,
+};
 
 // Vistas pré-definidas (posição e alvo em cm: [x, y_planta, altura])
 export const VIEWS = {
@@ -31,25 +65,25 @@ export class Viewer {
     r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     r.outputColorSpace = THREE.SRGBColorSpace;
     if (hi) {
-      r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 0.98;
+      r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = LOOK.exposure;
       r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
     }
     setAnisotropy(r.capabilities.getMaxAnisotropy());
     container.appendChild(r.domElement);
 
     const scene = (this.scene = new THREE.Scene());
-    scene.background = new THREE.Color(hi ? 0xcfdbe4 : 0xeef0f1);
-    if (hi) {
-      const pm = new THREE.PMREMGenerator(r);
-      scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture;
-      scene.fog = new THREE.Fog(0xcfdbe4, 25, 60);
-    }
+    scene.background = new THREE.Color(hi ? 0xc9d6e2 : 0xeef0f1);
+    if (hi) this.setupSky();
     this.camera = new THREE.PerspectiveCamera(hi ? 55 : 50, 1, 0.05, 200);
     this.controls = new OrbitControls(this.camera, r.domElement);
     this.controls.enableDamping = true; this.controls.dampingFactor = 0.08;
     this.controls.maxPolarAngle = Math.PI * 0.495;
 
     this.M = makeMaterials(hi);
+    if (hi) {
+      const ext = new Set(this.M.externos);
+      for (const m of allMaterials(this.M)) { if (ext.has(m)) m.envMap = this.skyEnv.texture; else if (m.isMeshStandardMaterial && m !== this.M.casaInterior) m.envMapIntensity *= LOOK.ambient; }
+    }
     const room = buildRoom(this.M, hi);
     this.roomGroups = room.groups;
     scene.add(room.root);
@@ -73,23 +107,94 @@ export class Viewer {
   setupLights() {
     const s = this.scene;
     if (this.hi) {
-      s.add(new THREE.HemisphereLight(0xe6eef5, 0x8c7a5c, 0.9));
-      const sun = (this.sun = new THREE.DirectionalLight(0xfff0dc, 2.4));
-      sun.position.set(cm(900), cm(1300), cm(-700));
+      // a luz ambiente vem da sonda (céu + rebatimento do próprio cômodo); aqui só o sol direto e um mínimo de preenchimento
+      s.add(new THREE.HemisphereLight(0xdde8f5, 0x8c7a5c, 0.06));
+      const sun = (this.sun = new THREE.DirectionalLight(0xfff0d8, LOOK.sun));
       sun.target.position.set(cm(230), 0, cm(320));
+      sun.position.copy(sun.target.position).addScaledVector(this.sunDir, 22);
       sun.castShadow = true;
-      sun.shadow.mapSize.set(2048, 2048);
-      const c = sun.shadow.camera; c.left = -9; c.right = 9; c.top = 9; c.bottom = -9; c.near = 1; c.far = 40;
-      sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.02;
+      sun.shadow.mapSize.set(4096, 4096);
+      const c = sun.shadow.camera; c.left = -10.5; c.right = 10.5; c.top = 10.5; c.bottom = -10.5; c.near = 1; c.far = 48;   // inclui a árvore do quintal
+      sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.018;
       s.add(sun, sun.target);
-      const fill = new THREE.PointLight(0xfff3e0, 3.0, 9, 1.6); fill.position.set(cm(230), cm(270), cm(330)); s.add(fill);
     } else {
       s.add(new THREE.HemisphereLight(0xffffff, 0xb8ab98, 1.6));
       const d = new THREE.DirectionalLight(0xffffff, 1.1); d.position.set(5, 9, -4); s.add(d);
     }
   }
 
-  /** Pós-processamento do 3D detalhado: oclusão de ambiente (GTAO) para sombras de contato nos cantos e encontros. */
+  /**
+   * Céu físico (Preetham) como fundo e como fonte da luz ambiente. A luz que chega em cada superfície vem de uma
+   * SONDA: um cubemap renderizado de dentro do cômodo (céu pelas aberturas, telhado escuro, paredes, piso iluminado),
+   * filtrado em PMREM. Assim o interior fica naturalmente mais escuro que o quintal e os reflexos mostram o próprio ambiente.
+   */
+  setupSky() {
+    const r = this.renderer, scene = this.scene;
+    const [sx, sy, sz] = LOOK.sunPos;
+    this.sunDir = new THREE.Vector3(cm(sx), cm(sz), cm(sy)).normalize();
+    const sky = (this.sky = new Sky());
+    sky.material.fragmentShader = sky.material.fragmentShader
+      .replace('L0 += ( vSunE * 19000.0 * Fex ) * sundisk;', '')                                  // sem o disco solar (o sol direto é a DirectionalLight)
+      .replace('uniform vec3 up;', 'uniform vec3 up;\nuniform float skyGain;')
+      .replace('gl_FragColor = vec4( retColor, 1.0 );', 'gl_FragColor = vec4( retColor * skyGain, 1.0 );');
+    const u = sky.material.uniforms;
+    u.skyGain = { value: LOOK.skyGain };
+    u.turbidity.value = 2.4; u.rayleigh.value = 1.7; u.mieCoefficient.value = 0.004; u.mieDirectionalG.value = 0.82;
+    u.sunPosition.value.copy(this.sunDir);
+    sky.scale.setScalar(90); sky.raycast = () => {}; sky.userData.noAO = true;
+    scene.add(sky);
+    scene.fog = new THREE.Fog(0xc9d6e2, 30, 80);
+    // nuvens esparsas: plano alto com textura de ruído (entra no fundo, nos reflexos e na sonda)
+    const mkClouds = () => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(360, 360), new THREE.MeshBasicMaterial({ map: nuvens(), color: new THREE.Color(1.5, 1.5, 1.5), transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide }));
+      m.rotation.x = Math.PI / 2; m.position.set(2, 34, 3); m.raycast = () => {}; m.userData.noAO = true; m.renderOrder = -1;
+      return m;
+    };
+    scene.add((this.clouds = mkClouds()));
+    // ambiente só do céu + chão (usado do lado de fora e como 1ª passada da sonda)
+    const es = new THREE.Scene(), sky2 = new THREE.Mesh(sky.geometry, sky.material);
+    sky2.scale.setScalar(90); es.add(sky2, mkClouds());
+    const chao = new THREE.Mesh(new THREE.CircleGeometry(80, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.2, 0.2, 0.15) }));
+    chao.rotation.x = -Math.PI / 2; chao.position.y = -1.5; es.add(chao);
+    this.pmrem = new THREE.PMREMGenerator(r);
+    this.skyScene = es;
+    this.skyEnv = this.pmrem.fromScene(es, 0, 0.1, 200);
+    scene.environment = this.skyEnv.texture;
+    this.probeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+    this.probeCam = new THREE.CubeCamera(0.05, 150, this.probeRT);
+    this.probeCam.position.set(cm(214), 1.4, cm(300));
+    this.probeDirty = true;
+    whenTexturesLoaded().then(() => { this.probeDirty = true; });
+  }
+
+  /** Muda a posição do sol (cm: x, y da planta, altura) e/ou o brilho do céu e refaz o ambiente. */
+  setSun(pos = LOOK.sunPos, gain = this.sky.material.uniforms.skyGain.value) {
+    this.sunDir.set(cm(pos[0]), cm(pos[2]), cm(pos[1])).normalize();
+    const u = this.sky.material.uniforms; u.sunPosition.value.copy(this.sunDir); u.skyGain.value = gain;
+    this.sun.position.copy(this.sun.target.position).addScaledVector(this.sunDir, 22);
+    const old = this.skyEnv;
+    this.skyEnv = this.pmrem.fromScene(this.skyScene, 0, 0.1, 200);
+    for (const m of this.M.externos) m.envMap = this.skyEnv.texture;
+    old.dispose(); this.probeDirty = true;
+  }
+
+  /** Recaptura a sonda de ambiente (2 passadas = luz do céu + um rebatimento). Chamada quando o layout ou a envoltória mudam. */
+  updateProbe() {
+    this.probeDirty = false;
+    const s = this.scene, hid = [this.selBox, this.mGroup, this.mHover].filter((o) => o && o.visible);
+    hid.forEach((o) => (o.visible = false));
+    const old = this.probeEnv; let rt = null;
+    s.environment = this.skyEnv.texture;
+    for (let i = 0; i < 2; i++) {
+      this.probeCam.update(this.renderer, s);
+      const n = this.pmrem.fromCubemap(this.probeRT.texture);
+      rt?.dispose(); rt = n; s.environment = rt.texture;
+    }
+    this.probeEnv = rt; old?.dispose();
+    hid.forEach((o) => (o.visible = true));
+  }
+
+  /** Pós-processamento do 3D detalhado: oclusão de ambiente (GTAO), halo (bloom) nas altas luzes, tone mapping e grão/vinheta. */
   setupComposer() {
     const r = this.renderer;
     const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
@@ -103,14 +208,18 @@ export class Viewer {
     const render = ao.render.bind(ao);
     ao.render = (...a) => {
       const hidden = [];
-      this.scene.traverseVisible((o) => { if (o.isMesh && (Array.isArray(o.material) ? o.material.some((m) => m.transparent) : o.material?.transparent)) hidden.push(o); });
+      this.scene.traverseVisible((o) => { if (o.isMesh && (o.userData.noAO || (Array.isArray(o.material) ? o.material.some((m) => m.transparent) : o.material?.transparent))) hidden.push(o); });
       hidden.forEach((o) => (o.visible = false)); render(...a); hidden.forEach((o) => (o.visible = true));
     };
     c.addPass(ao);
+    c.addPass((this.bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), LOOK.bloom, 0.75, 1.15)));
     c.addPass(new OutputPass());
+    c.addPass((this.film = new ShaderPass(FilmShader)));
   }
 
   render() {
+    if (this.hi && this.probeDirty) this.updateProbe();
+    if (this.film) this.film.uniforms.uTime.value = (performance.now() / 1000) % 1000;
     if (this.composer) this.composer.render(); else this.renderer.render(this.scene, this.camera);
   }
 
@@ -133,7 +242,7 @@ export class Viewer {
       if (!this.hi) this.addEdges(g);
       this.furn.add(g);
     }
-    this.dirty = false;
+    this.dirty = false; this.probeDirty = true;
     this.updateSelection();
   }
 
@@ -157,14 +266,14 @@ export class Viewer {
   frame() {
     if (this.dirty) this.rebuild();
     const dt = Math.min(0.05, this.clock.getDelta());
-    if (this.walk) this.walkStep(dt); else { this.orbitKeysStep(dt); this.controls.update(); }
+    if (this.walk) this.walkStep(dt); else { this.orbitKeysStep(dt); this.relaxPolar(); this.controls.update(); }
     this.render();
     this.updateMeasureLabels();
   }
 
-  setRoof(v) { this.roomGroups.telhado.visible = v; this.roomGroups.luzes.visible = v; }
-  setFront(v) { this.roomGroups.frente.visible = v; }
-  setExterior(v) { this.roomGroups.externo.visible = v; }
+  setRoof(v) { this.roomGroups.telhado.visible = v; this.roomGroups.luzes.visible = v; this.probeDirty = true; }
+  setFront(v) { this.roomGroups.frente.visible = v; this.probeDirty = true; }
+  setExterior(v) { this.roomGroups.externo.visible = v; this.probeDirty = true; }
 
   setView(name, instant = false) {
     const v = VIEWS[name]; if (!v) return;
@@ -224,26 +333,40 @@ export class Viewer {
     }
     this.onWalkChange?.(on);
   }
-  /** Navegação por teclado fora do modo caminhar: ↑↓ anda, ←→ gira, W/S sobe/desce, A/D lateral, Z/⇧Z (X) zoom. */
+  /**
+   * Navegação por teclado fora do modo caminhar: ↑↓ anda, ←→ gira, ⇧+setas muda a direção da câmera (←→ gira, ↑↓ inclina),
+   * W/S sobe/desce, A/D lateral, Z/⇧Z (X) zoom; ⇧ acelera W/S/A/D.
+   */
   orbitKeysStep(dt) {
     const k = this.keys;
     if (!Object.values(k).some(Boolean)) return;
-    const fast = k.ShiftLeft || k.ShiftRight;
-    const sp = (fast ? 3.2 : 1.4) * dt, cam = this.camera.position, tgt = this.controls.target;
+    const shift = k.ShiftLeft || k.ShiftRight;
+    const ax = (k.ArrowLeft ? 1 : 0) - (k.ArrowRight ? 1 : 0), ay = (k.ArrowUp ? 1 : 0) - (k.ArrowDown ? 1 : 0);
+    const sp = (shift ? 3.2 : 1.4) * dt, cam = this.camera.position, tgt = this.controls.target;
     const look = tgt.clone().sub(cam), fwd = new THREE.Vector3(look.x, 0, look.z);
     if (fwd.lengthSq() < 1e-6) fwd.set(0, 0, -1); fwd.normalize();
     const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
     const move = new THREE.Vector3();
-    move.addScaledVector(fwd, ((k.ArrowUp ? 1 : 0) - (k.ArrowDown ? 1 : 0)) * sp);
+    move.addScaledVector(fwd, (shift ? 0 : ay) * sp);
     move.addScaledVector(right, ((k.KeyD ? 1 : 0) - (k.KeyA ? 1 : 0)) * sp);
     move.y += ((k.KeyW ? 1 : 0) - (k.KeyS ? 1 : 0)) * sp;
     if (move.lengthSq()) {
       if (cam.y + move.y < 0.15) move.y = 0.15 - cam.y;
       cam.add(move); tgt.add(move);
     }
-    const turn = ((k.ArrowLeft ? 1 : 0) - (k.ArrowRight ? 1 : 0)) * (fast ? 1.8 : 1.0) * dt;
-    if (turn) { look.applyAxisAngle(new THREE.Vector3(0, 1, 0), turn); tgt.copy(cam).add(look); }
-    const zoomIn = k.KeyZ && !fast, zoomOut = k.KeyX || (k.KeyZ && fast);
+    // direção da câmera: a câmera fica no lugar e o alvo gira em torno dela (←→), ou sobe/desce (⇧ + ↑↓)
+    const yaw = ax * (shift ? 1.2 : 1.0) * dt, pitch = shift ? ay * 0.8 * dt : 0;
+    if (yaw || pitch) {
+      look.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+      if (pitch) {
+        const len = look.length() || 1, hl = Math.hypot(look.x, look.z);
+        const hx = hl > 1e-6 ? look.x / hl : fwd.x, hz = hl > 1e-6 ? look.z / hl : fwd.z;
+        const el = Math.max(-1.45, Math.min(1.45, Math.asin(Math.max(-1, Math.min(1, look.y / len))) + pitch));
+        look.set(hx * Math.cos(el) * len, Math.sin(el) * len, hz * Math.cos(el) * len);
+      }
+      tgt.copy(cam).add(look);
+    }
+    const zoomIn = k.KeyZ && !shift, zoomOut = k.KeyX || (k.KeyZ && shift);
     if (zoomIn || zoomOut) {
       const off = cam.clone().sub(tgt), dist = off.length();
       if (dist < 1e-3) this.camera.getWorldDirection(off).negate();
@@ -251,11 +374,22 @@ export class Viewer {
       cam.copy(tgt).addScaledVector(off.normalize(), f);
     }
   }
+  /** O giro com o mouse não deixa a câmera passar abaixo do alvo; se o teclado apontou a câmera para cima, o limite acompanha. */
+  relaxPolar() {
+    const o = this.camera.position.clone().sub(this.controls.target), l = o.length();
+    if (l < 1e-6) return;
+    this.controls.maxPolarAngle = Math.max(Math.PI * 0.495, Math.min(Math.PI - 0.05, Math.acos(Math.max(-1, Math.min(1, o.y / l)))));
+  }
 
+  /** Modo caminhar: W/A/S/D ou setas andam; ⇧+setas olham em volta (como arrastar); ⇧ corre. */
   walkStep(dt) {
-    const k = this.keys, sp = (k.ShiftLeft || k.ShiftRight ? 2.6 : 1.3) * dt;
-    const f = (k.KeyW || k.ArrowUp ? 1 : 0) - (k.KeyS || k.ArrowDown ? 1 : 0);
-    const s = (k.KeyD || k.ArrowRight ? 1 : 0) - (k.KeyA || k.ArrowLeft ? 1 : 0);
+    const k = this.keys, shift = k.ShiftLeft || k.ShiftRight, sp = (shift ? 2.6 : 1.3) * dt, arrows = !shift;
+    const f = (k.KeyW || (arrows && k.ArrowUp) ? 1 : 0) - (k.KeyS || (arrows && k.ArrowDown) ? 1 : 0);
+    const s = (k.KeyD || (arrows && k.ArrowRight) ? 1 : 0) - (k.KeyA || (arrows && k.ArrowLeft) ? 1 : 0);
+    if (shift) {
+      this.yaw += ((k.ArrowLeft ? 1 : 0) - (k.ArrowRight ? 1 : 0)) * 1.2 * dt;
+      this.pitch = Math.max(-1.2, Math.min(1.2, this.pitch + ((k.ArrowUp ? 1 : 0) - (k.ArrowDown ? 1 : 0)) * 0.8 * dt));
+    }
     const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw);
     const p = this.camera.position;
     p.x += (fx * f - fz * s) * sp; p.z += (fz * f + fx * s) * sp;

@@ -10,7 +10,7 @@ Projeto arquitetônico para transformar a **"ÁREA COBERTA"** da casa (fundos) n
 | `móveis/` | Fotos dos móveis existentes |
 | `ambiente/` | Fotos do ambiente atual (só colunas, sem paredes) |
 | `app/` | **Aplicação web** (planta baixa interativa + 3D detalhado; a aba 3D simples foi removida a pedido do usuário) — three.js via CDN, sem build |
-| `app/assets/tex/` | Texturas recortadas/retificadas das fotos (geladeira, fogão, buffet, lava-louças, textura da parede) |
+| `app/assets/tex/` | Texturas recortadas/retificadas das fotos (geladeira, fogão, buffet, lava-louças) + fotos-textura geradas no Muitto: `madeira_armario_ia_v/h` (armários), `tabuas_escura/clara` (madeira de demolição: vigas, tampos, mesa), `tijolo_ia` + `tijolo_ia_relevo` (fogão a lenha) |
 
 Rodar: `python3 -m http.server 8765 --directory app` e abrir `http://localhost:8765` (config em `.claude/launch.json`, nome `cozinha`). Precisa de servidor HTTP (texturas não carregam via `file://`).
 
@@ -38,7 +38,7 @@ Rodar: `python3 -m http.server 8765 --directory app` e abrir `http://localhost:8
 - **Acessórios** (kind `acessorios`, `variante: 'bancada' | 'ervas' | 'mesa'`) + chaleira/panela automáticas sobre os fogões (`acessorios: false` desliga)
 - Torneira **de parede** (latão, registro em cruzeta) sobre a cuba, a ~1,10 m — abaixo do peitoril da janela (1,20 m)
 - **Rebaixo de 1,5 cm** no tampo em volta da cuba e na área do escorredor (contém a água; superfície lisa, sem sulcos) — `cuba.rebaixo = { prof, esq, dir, frente, fundo }` (cm); o tampo é montado por placas retangulares em `B.bancada`
-- **Azulejos antigos sortidos 15 × 15 cm** na parede da pia, da bancada (0,90) até a altura dos armários/janela (2,69), de x 1,73 (depois da torre) a 4,28, contornando a janela — `ROOM.azulejos` em `data.js`, textura `T.azulejos()` (8 × 8 peças, desenhos variados, rotação aleatória, desgaste)
+- **Ladrilhos hidráulicos antigos sortidos 15 × 15 cm** (rústicos, foscos, paleta terrosa escurecida — pedido do usuário em 2026-11-10; antes eram azulejos esmaltados claros) na parede da pia, da bancada (0,90) até a altura dos armários/janela (2,69), de x 1,73 (depois da torre) a 4,28, contornando a janela — `ROOM.azulejos` em `data.js`, textura `T.azulejos()` (8 × 8 peças, desenhos geométricos variados, rotação aleatória, pigmento gasto, trincas) + relevo/brilho em `T.azulejosRelevoPBR()`
 - **Sanduicheira** (28 × 26 × 11) e **liquidificador** (20 × 20 × 42) na bancada lateral direita, junto à tomada do janelão — kind `eletroportatil`, `variante: 'sanduicheira' | 'liquidificador'`; o fio vai sozinho até a tomada mais próxima na parede de trás (`caboTomada`)
 - **Escorredor de louça e talheres** grande (42 × 32 × 16,5 cm) na bancada, ao lado da cuba (kind `escorredor`)
 - Barra de utensílios na parede do fundo, **sob o armário suspenso com nicho** (não sobre o fogão)
@@ -48,6 +48,7 @@ Rodar: `python3 -m http.server 8765 --directory app` e abrir `http://localhost:8
 - **Ganchos** sob o armário com nicho: barra de colheres curta (perto do canto) + ganchos de panos/toalhas (em direção à janela)
 - **Tomadas duplas 4×2** (kind `tomada`): parede direita sobre o fogão (acendimento) e sobre a bancada lateral; parede da pia **colada à moldura da janela** (longe dos panos)
 - Sem prateleira decorativa sobre a janela (removida pelo usuário)
+- **Luminárias pendentes: só 2** (existentes) — uma sobre a borda externa da pia e outra sobre a mesa de jantar: `ROOM.pendentes` em `data.js` (posições fixas no teto; não acompanham os móveis)
 - Regra de segurança: não pendurar armário sobre o fogão a gás a menos de ~70 cm das bocas
 
 **Copa (frente, perto da parede de vidro)**
@@ -98,7 +99,7 @@ Sistema de coordenadas usado no app (planta vista com a **frente/quintal em cima
 | `js/export.js` | PDF (jsPDF + svg2pdf, planta vetorial 1:50 + quadro de móveis + páginas 3D) e PNG |
 | `js/main.js` | abas, painel lateral, histórico (desfazer/refazer), menus salvar/exportar, atalhos |
 
-Navegação 3D por teclado (fora do modo caminhar, `Viewer.orbitKeysStep`): `↑`/`↓` anda, `←`/`→` gira, `W`/`S` sobe/desce, `A`/`D` lateral, `Z` aproxima, `⇧Z` ou `X` afasta, `⇧` acelera.
+Navegação 3D por teclado (fora do modo caminhar, `Viewer.orbitKeysStep`): `↑`/`↓` anda, `←`/`→` gira, **`⇧`+setas muda a direção da câmera** (`←`/`→` gira, `↑`/`↓` inclina para cima/baixo, sem andar — pedido do usuário), `W`/`S` sobe/desce, `A`/`D` lateral, `Z` aproxima, `⇧Z` ou `X` afasta; `⇧` só acelera `W`/`S`/`A`/`D`. No modo caminhar (`walkStep`) `⇧`+setas também olha em volta. `Viewer.relaxPolar` solta o limite do OrbitControls quando o teclado aponta a câmera para cima.
 
 Ferramentas de visualização (canto superior direito da vista): **📏 Medir** (`M`) — trena por clique-e-arraste na planta (`PlanEditor.snapMeasure`, ímã em cantos/bordas de paredes, pilares e móveis) e no 3D (`Viewer.setupMeasure`, raycast com ímã em vértices); `⇧` trava eixo, `Alt` sem ímã, `⌫` apaga a última, `Esc` sai. Medidas ficam só na sessão (por vista) e entram no PNG do 3D. **⛶ Tela cheia** (`F`; cai para "janela inteira" `body.pseudo-full` se o navegador recusar a Fullscreen API). **⟩ Painel** (`\`) recolhe a lateral (lembrado em `localStorage`).
 
@@ -116,7 +117,7 @@ Para adicionar um novo tipo de móvel: entrada em `KINDS` (data.js) → símbolo
 - Layout salvo automaticamente em `localStorage` (`cozinha-layout-v1`); também exporta/importa JSON. `DEFAULT_ITEMS` (data.js) = layout que aparece na primeira abertura (sem nada salvo); foi atualizado em 2026-11-09 com o layout final do usuário (34 itens). O botão "restaurar proposta" volta a ele.
 - Exportações: PDF da planta em **escala 1:50 (A4 paisagem)**; PNG das vistas 3D.
 - Estilo: madeira de demolição (armários, vigas, triângulo da frente, molduras), granilite avermelhado, parede texturizada bege existente, piso porcelanato bege-acinzentado existente (tom real é mais acinzentado que a foto), telhado com caibros escuros aparentes.
-- Geração de imagens / modelos 3D por IA: usar o conector **Muitto** (consome créditos — confirmar com o usuário antes).
+- Geração de imagens / modelos 3D por IA: usar o conector **Muitto** (consome créditos — confirmar com o usuário antes). Em 2026-11-10 o único modelo de imagem que funcionou no workspace foi **FLUX.2 [klein] 9B Base** (`fal-ai-flux-2-klein-9b-base`, ~US$ 0,035/imagem, 1024 px); os demais foram barrados pela política de dados do workspace ou falharam no provedor. Texturas geradas precisam de preparo local (recorte junta a junta para repetir, relevo) antes de ir para `assets/tex`.
 
 ## Premissas a confirmar com o usuário
 - Altura da meia-parede (110) e topo do janelão (280).
@@ -128,5 +129,12 @@ Para adicionar um novo tipo de móvel: entrada em `KINDS` (data.js) → símbolo
 
 - Interface: abas **Planta baixa** e **3D** (detalhado). O modo de baixa fidelidade continua no código de `Viewer` (`hi=false`), mas não aparece mais na interface.
 - Lava-louças: frente desenhada em canvas (`T.lavaLoucasFrente`), não usa mais a foto distorcida.
-- Realismo do 3D detalhado: oclusão de ambiente (GTAO, `Viewer.setupComposer`; vidros não geram oclusão), relevo (bump) em tijolo, ferro fundido, madeiras e parede de grafiato.
+- Realismo do 3D detalhado (fotorrealismo):
+  - **Luz**: céu físico (`Sky`, sem disco solar) + nuvens (`T.nuvens`) como fundo; sol = `DirectionalLight` com sombra 4096. A luz ambiente e os reflexos vêm de uma **sonda** (`Viewer.updateProbe`): cubemap renderizado de dentro do cômodo (2 passadas) → PMREM → `scene.environment`. É recapturada quando o layout, o telhado, a fachada ou o entorno mudam (`probeDirty`). Materiais só externos (`M.externos`) usam o ambiente do céu (`skyEnv`). Não há mais `RoomEnvironment` nem luz de preenchimento.
+  - **Ajustes de "fotografia"** num lugar só: `LOOK` em `viewer3d.js` (exposição, reforço da luz ambiente interna, brilho do céu, sol e sua posição, bloom, grão, vinheta). `Viewer.setSun(pos, ganho)` muda o sol/céu em tempo real.
+  - **Pós-processamento** (`Viewer.setupComposer`): GTAO (vidros/céu não geram oclusão) → bloom leve → tone mapping ACES → grão + vinheta (`FilmShader`).
+  - **Materiais PBR** (`applyPBR` em `models.js`, conjuntos `*PBR()` em `textures.js` = cor + normal + rugosidade gerados em canvas, ladrilháveis): porcelanato (2 × 2 peças, rejunte rebaixado; cor base `#b1b1af` — o usuário já pediu "mais acinzentado" três vezes, não voltar ao bege), reboco rústico com marcas de colher (substitui a foto espelhada da parede), granilite polido, azulejos abaulados, inox escovado, chapa pintada ("casca de laranja"), pintura, concreto, grama, brita, telhas. Conjuntos neutros (`pinturaPBR`, `foscoPBR`, `esmaltePBR`, `escovadoPBR`) multiplicam a cor do material — nenhum material fica liso/uniforme. Madeiras e tijolo são **fotos-textura geradas no Muitto** (1024 px, carregadas com `T.photo`): armários (`madeira_armario_ia_*`, tom aproximado ao da foto de referência, espelhada nos dois eixos), tábuas de demolição (`tabuas_escura` = vigas/caibros/molduras/tampo do armário baixo, `tabuas_clara` = mesa e triângulo da frente; 8 tábuas por textura, `wrap: 'mr'` = espelha em U, repete em V) e tijolinho (`tijolo_ia`, 24 fiadas = 1,38 m, com relevo próprio em `tijolo_ia_relevo`). Rugosidade derivada da cor (`T.roughFrom`). As texturas procedurais antigas de madeira/tijolo foram removidas.
+  - **Vidro** (`glassMaterial`): reflexo especular inteiro mesmo com o difuso quase transparente (blending pré-multiplicado). `M.vidro` = vidros internos (refletem a sonda); `M.vidroFachada` = persiana e janelões (refletem o céu).
+  - **Árvore do quintal** (`arvore()` em `models.js`, posição/altura em `ROOM.lot.arvore` — x −20, y −270 (ponto indicado pelo usuário, depois aproximado 60 cm da casa) —, grupo `externo`; o sol em `LOOK.sunPos` vem da frente-esquerda a ~32° justamente para a sombra da copa cair sobre a persiana da frente: se mover a árvore, reapontar o sol): galhos por ramificação recursiva com semente fixa + copa de raminhos instanciados (`T.folhagem`, `alphaTest`, projeta sombra recortada).
+  - Atrás da janela/porta do fundo há um cômodo fechado e escuro (`M.casaInterior`, no grupo `externo`) para não aparecer céu onde é a casa.
 - Vasos de ervas no peitoril: centralizados na faixa livre entre a borda e o caixilho (offset calculado em `B.acessorios`).
