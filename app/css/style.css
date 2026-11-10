@@ -67,6 +67,12 @@ kbd { font: 11px/1 ui-monospace, monospace; background: #fff; border: 1px solid 
 .m-label small { display: block; font-weight: 500; font-size: 10.5px; opacity: .85; }
 body.side-collapsed .layout { grid-template-columns: 1fr 0; }
 body.side-collapsed .side { display: none; }
+/* tela estreita com o painel recolhido: a vista (planta/3D) ocupa toda a altura que sobra, em vez de parar em 62vh */
+@media (max-width: 900px) {
+  body.side-collapsed { overflow: hidden; }
+  body.side-collapsed .layout { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr); }
+  body.side-collapsed .stage { border-bottom: 0; }
+}
 .stage:fullscreen { background: #fff; }
 body.pseudo-full .top { display: none; }
 body.pseudo-full .layout { grid-template-columns: 1fr 0; }
