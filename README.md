@@ -37,8 +37,9 @@ Depois abra http://localhost:8765.
 | `móveis/`, `ambiente/` | Fotos dos móveis existentes e do ambiente atual |
 | `referencias/` | Imagens de referência (armários, pratos etc.) |
 | `layouts-salos/` | Layouts salvos |
+| `docs/` | Prompt inicial do projeto |
 
-As medidas, os requisitos e a arquitetura do código estão documentados em [`CLAUDE.md`](CLAUDE.md).
+As medidas, os requisitos e a arquitetura do código estão documentados em [`CLAUDE.md`](CLAUDE.md). O texto do prompt que deu início ao projeto está em [`docs/prompt-inicial.md`](docs/prompt-inicial.md).
 
 ## Publicação
 

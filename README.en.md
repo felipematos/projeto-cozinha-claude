@@ -39,8 +39,9 @@ Then open http://localhost:8765.
 | `móveis/`, `ambiente/` | Photos of the existing furniture and of the current space |
 | `referencias/` | Reference images (cabinets, plates, etc.) |
 | `layouts-salos/` | Saved layouts |
+| `docs/` | The project's initial prompt |
 
-Dimensions, requirements and code architecture are documented in [`CLAUDE.md`](CLAUDE.md) (in Portuguese).
+Dimensions, requirements and code architecture are documented in [`CLAUDE.md`](CLAUDE.md) (in Portuguese). The prompt that started the project is in [`docs/prompt-inicial.md`](docs/prompt-inicial.md) (in Portuguese).
 
 ## Publishing
 
